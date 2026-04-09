@@ -1,0 +1,139 @@
+import { Telegraf, Markup } from 'telegraf';
+import { yamlAdmin } from '../service/yamlAdmin';
+
+export const registerCommands = (bot: Telegraf<any>) => {
+  bot.command('start', (ctx) => {
+    ctx.reply(
+      '👋 Welcome to the Dashy Admin Bot!\n\nUse /help to see all available commands.',
+      Markup.keyboard([['/sections', '/items'], ['/add', '/cancel']]).resize()
+    );
+  });
+
+  bot.command('help', (ctx) => {
+    ctx.reply(
+      '🛠️ **Admin Commands**\n' +
+      '/sections - List all sections\n' +
+      '/items - List all items\n' +
+      '/add - Add a new item\n' +
+      '/delete - Delete an item\n' +
+      '/edit - Edit an item\n' +
+      '/add_section - Create a new section\n' +
+      '/manage_sections - Rename, Move items, or Delete Sections\n' +
+      '/cancel - Cancel any current operation'
+    );
+  });
+
+  bot.command('sections', (ctx) => {
+    const sections = yamlAdmin.getSections();
+    if (!sections.length) return ctx.reply('No sections found.');
+    let msg = '📂 **Sections**\n\n';
+    sections.forEach(s => msg += `- ${s.name} (${s.items?.length || 0} items)\n`);
+    const keyboard = Markup.inlineKeyboard([
+      [Markup.button.callback('➕ Add Section', 'action_add_section'), Markup.button.callback('🔧 Manage', 'action_manage_sections')]
+    ]);
+    ctx.reply(msg, { parse_mode: 'Markdown', ...keyboard });
+  });
+
+  bot.command('items', (ctx) => {
+    const sections = yamlAdmin.getSections();
+    if (!sections.length) return ctx.reply('No items found.');
+    let msg = '📦 **Items**\n\n';
+    sections.forEach(s => {
+      msg += `*${s.name}*\n`;
+      s.items?.forEach(i => msg += ` - ${i.title}\n`);
+      msg += '\n';
+    });
+    const keyboard = Markup.inlineKeyboard([
+      [Markup.button.callback('➕ Add Item', 'action_add_item'), Markup.button.callback('✏️ Edit Item', 'action_edit_item')],
+      [Markup.button.callback('➡️ Move Item', 'action_move_item'), Markup.button.callback('🗑️ Delete Item', 'action_delete_item')]
+    ]);
+    ctx.reply(msg, { parse_mode: 'Markdown', ...keyboard });
+  });
+
+  bot.command('cancel', async (ctx) => {
+    if (ctx.scene) {
+      await ctx.scene.leave();
+    }
+    ctx.reply('Any active operation has been cancelled.');
+  });
+
+  bot.command('add', (ctx) => {
+    ctx.scene.enter('ADD_ITEM_SCENE');
+  });
+
+  bot.command('edit', (ctx) => {
+    ctx.scene.enter('EDIT_ITEM_SCENE');
+  });
+
+  bot.command('add_section', (ctx) => {
+    ctx.scene.enter('ADD_SECTION_SCENE');
+  });
+
+  bot.command('manage_sections', (ctx) => {
+    ctx.scene.enter('MANAGE_SECTION_SCENE');
+  });
+
+  bot.command('delete', (ctx) => {
+    const sections = yamlAdmin.getSections();
+    if (!sections.length) return ctx.reply('No sections/items found.');
+    
+    const buttons: any[] = [];
+    sections.forEach((s) => {
+      s.items?.forEach((i) => {
+        // limit callback data to 64 bytes
+        const cbData = `del_${s.name}_${i.title}`.substring(0, 64);
+        buttons.push([Markup.button.callback(`🗑️ ${i.title} (${s.name})`, cbData)]);
+      });
+    });
+
+    if (buttons.length === 0) return ctx.reply('No items to delete.');
+
+    ctx.reply('Select an item to delete:', Markup.inlineKeyboard(buttons));
+  });
+
+  bot.on('text', async (ctx) => {
+    const text = ctx.message.text.trim();
+    
+    if (!text.startsWith('http://') && !text.startsWith('https://')) return;
+    
+    let isValid = false;
+    try {
+      new URL(text);
+      isValid = true;
+    } catch(e) {}
+
+    if (!isValid) return;
+
+    await ctx.reply('⏳ Adding your link...');
+
+    let title = 'New Link';
+    try {
+      const response = await fetch(text, { signal: AbortSignal.timeout(5000) });
+      const html = await response.text();
+      const match = html.match(/<title[^>]*>([^<]+)<\/title>/i);
+      if (match && match[1]) {
+        title = match[1].trim();
+      } else {
+        const u = new URL(text);
+        title = (u.hostname + (u.pathname === '/' ? '' : u.pathname)).substring(0, 30);
+      }
+    } catch (e) {
+      const u = new URL(text);
+      title = (u.hostname + (u.pathname === '/' ? '' : u.pathname)).substring(0, 30);
+    }
+
+    const sectionName = 'Unsorted';
+    const item = {
+      title: title,
+      url: text,
+      icon: 'fas fa-link'
+    };
+
+    const success = yamlAdmin.addItem(sectionName, item);
+    if (success) {
+      await ctx.reply(`✅ Added "${title}" to "${sectionName}".`);
+    } else {
+      await ctx.reply(`❌ Failed to automatically add link.`);
+    }
+  });
+};

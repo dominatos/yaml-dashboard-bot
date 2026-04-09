@@ -1,0 +1,11 @@
+pageInfo:
+  title: Example Home Lab
+  description: Example description
+sections:
+  - name: Media
+    icon: fas fa-photo-video
+    items:
+      - title: Jellyfin
+        description: Media server
+        icon: si-jellyfin
+        url: https://watch.example.net
