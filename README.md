@@ -29,6 +29,60 @@ By bridging a Telegram chat interface directly to your YAML file, this bot acts 
 If you like this project, consider supporting me on [Buy Me a Coffee](https://www.buymeacoffee.com/dominatos) ?☕️
 
 ---
+## 🖥️ PHP Dashboard (index.php)
+
+The `index.php` file included in this repository provides a lightweight, self-contained PHP dashboard that renders a Dashy-compatible `conf.yml` as a modern, dark-themed web page. It operates entirely independently of Dashy, meaning you don't need to run the full Dashy stack to get a beautiful dashboard with an animated blob gradient background and glassmorphism cards.
+
+### 📋 Requirements
+
+*   **PHP 8+**
+*   **Python 3**
+*   **PyYAML** (`python3-yaml` via apt or `pip install PyYAML`)
+
+### ⚡ Quick Setup
+
+1. Copy the `index.php` file so it sits right next to your `conf.yml` file.
+2. Serve the directory using your preferred web server (such as Apache or Nginx) or quickly spin up PHP's built-in development server:
+   ```bash
+   php -S localhost:8080
+   ```
+3. Open `http://localhost:8080` in your web browser.
+
+### ✨ Features
+
+*   **Zero Build Dependencies:** No Node.js, `npm`, or Docker needed.
+*   **Smart Icon Fallback Chain:** Automatically resolves icons in priority order: Hardcoded special map (Tandoor, n8n, etc.) ➔ Simple Icons CDN (`si-`) ➔ Font Awesome (`fa`) ➔ Material Design Icons (`mdi-`) ➔ Generic SVG fallback.
+*   **`subItems` Multi-Link Support:** Display multiple distinct links (e.g., Local, Network, Public) within a single service card with emoji prefixes.
+*   **Responsive Grid:** Fully fluid layout adapting dynamically to desktops, tablets, and mobile screens.
+
+### 📝 Example `conf.yml` Structure
+
+```yaml
+pageInfo:
+  title: "My Home Server"
+  description: "Centralized access portal"
+  navLinks:
+    - title: "GitHub Repo"
+      path: "https://github.com/"
+  footerText: "Running smoothly on self-hosted infrastructure."
+
+sections:
+  - name: "Media Services"
+    icon: "fa-solid fa-play"
+    items:
+      - title: "Jellyfin"
+        description: "Open source media server"
+        icon: "si-jellyfin"
+        subItems:
+          - title: "🏠 Local"
+            url: "http://192.168.1.100:8096"
+          - title: "🌍 Public"
+            url: "https://media.example.com"
+```
+
+> **💡 Note:** This PHP dashboard reads the exact same `conf.yml` used by the Telegram bot. Any additions, edits, or reordering you perform via the Telegram bot will instantly be synced and reflected on your live dashboard!
+
+---
 ## 🚀 Setup & Installation
 
 ### 1. Requirements
