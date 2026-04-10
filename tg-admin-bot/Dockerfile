@@ -27,3 +27,5 @@ COPY --from=builder /app/dist ./dist
 
 # Command to run bot
 CMD ["npm", "run", "start"]
+
+# codded by https://github.com/dominatos

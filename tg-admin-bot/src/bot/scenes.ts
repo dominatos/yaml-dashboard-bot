@@ -364,3 +364,5 @@ export const moveItemScene = new Scenes.WizardScene(
 
 export const stage = new Scenes.Stage([addItemScene, addSectionScene, editItemScene, manageSectionScene, moveItemScene]);
 
+
+// codded by https://github.com/dominatos

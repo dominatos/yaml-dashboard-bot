@@ -13,3 +13,5 @@ services:
       - ${CONF_PATH:-../conf.yml}:/app/conf.yml
     environment:
       - CONF_PATH=/app/conf.yml
+
+# codded by https://github.com/dominatos

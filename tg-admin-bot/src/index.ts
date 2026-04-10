@@ -48,3 +48,5 @@ bot.launch(() => {
 // Enable graceful stop
 process.once('SIGINT', () => stopProcess('SIGINT'));
 process.once('SIGTERM', () => stopProcess('SIGTERM'));
+
+// codded by https://github.com/dominatos

@@ -65,3 +65,5 @@ export const registerActions = (bot: Telegraf<any>) => {
     }
   });
 };
+
+// codded by https://github.com/dominatos

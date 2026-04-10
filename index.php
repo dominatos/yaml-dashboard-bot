@@ -382,3 +382,5 @@ $sections = $config['sections'] ?? [];
     </div>
 </body>
 </html>
+
+<!-- codded by https://github.com/dominatos -->

@@ -9,3 +9,5 @@ sections:
         description: Media server
         icon: si-jellyfin
         url: https://watch.example.net
+
+# codded by https://github.com/dominatos

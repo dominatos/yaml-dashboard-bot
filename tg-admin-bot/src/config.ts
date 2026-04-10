@@ -20,3 +20,5 @@ if (!parsedEnv.success) {
 }
 
 export const env = parsedEnv.data;
+
+// codded by https://github.com/dominatos
