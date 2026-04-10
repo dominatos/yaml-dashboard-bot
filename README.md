@@ -3,7 +3,12 @@
 A lightweight, secure, and fully Dockerized Telegram bot designed to manage your self-hosted Dashy-style dashboard configuration (`conf.yml`). 
 
 By bridging a Telegram chat interface directly to your YAML file, this bot acts as a specialized CRUD (Create, Read, Update, Delete) administrator. It utilizes interactive multi-step wizards for adding items and robust inline-keyboards for modifications, completely removing the hassle of SSH/terminal YAML editing.
+---
 
+
+If you like this project, consider supporting me on [Buy Me a Coffee](https://www.buymeacoffee.com/dominatos) ??
+
+---
 ## ✨ Features
 
 - **Strict User Authorization**: Locked down via a strict internal allowlist so only you (or designated friends/family) can access the bot functionality.
@@ -45,13 +50,20 @@ BOT_TOKEN=123456789:YOUR_VERY_LONG_TELEGRAM_TOKEN_HERE
 
 # Comma-separated list of allowed Telegram user IDs
 ALLOWED_USER_IDS=12345678,87654321
+
+# Optional: Path to where your conf.yml lives.
+# If omitted, defaults to the parent directory (`../conf.yml`). 
+# You can set this to any absolute path (e.g. /var/www/html/conf.yml) and Docker will dynamically mount it.
+CONF_PATH=../conf.yml
 ```
 
 ---
 
 ## 🐳 Deployment (Docker Compose)
 
-The provided `docker-compose.yml` mounts the configuration file directly from the parent directory (`../conf.yml`). Because of this, it inherently assumes the Bot directory natively lives inside the same parent tracking folder as the PHP dashboard (e.g. `/index-page/tg-admin-bot/` -> `/index-page/conf.yml`).
+The provided `docker-compose.yml` dynamically mounts the exact file location defined by `CONF_PATH` inside your `.env` file directly into the container. 
+
+If you leave `CONF_PATH` blank or omitted, it gracefully falls back to looking for `../conf.yml`. This allows you to store your dashboard configuration globally anywhere on your host filesystem (like `/var/www/html/conf.yml`) and gracefully wire it right into the bot without editing the compose file.
 
 Launch the system detached:
 ```bash
@@ -119,3 +131,10 @@ Interact with your active Telegram bot using these standard commands:
 ├── .env.example           # Example runtime definitions
 └── README.md
 ```
+
+---
+
+
+If you like this project, consider supporting me on [Buy Me a Coffee](https://www.buymeacoffee.com/dominatos) ??
+
+---
