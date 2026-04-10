@@ -5,7 +5,11 @@ export const registerCommands = (bot: Telegraf<any>) => {
   bot.command('start', (ctx) => {
     ctx.reply(
       '👋 Welcome to the Dashy Admin Bot!\n\nUse /help to see all available commands.',
-      Markup.keyboard([['/sections', '/items'], ['/add', '/cancel']]).resize()
+      Markup.keyboard([
+        ['/sections', '/items'], 
+        ['/add', '/edit', '/delete'], 
+        ['/cancel']
+      ]).resize()
     );
   });
 
@@ -76,7 +80,7 @@ export const registerCommands = (bot: Telegraf<any>) => {
   bot.command('delete', (ctx) => {
     const sections = yamlAdmin.getSections();
     if (!sections.length) return ctx.reply('No sections/items found.');
-    
+
     const buttons: any[] = [];
     sections.forEach((s) => {
       s.items?.forEach((i) => {
@@ -93,39 +97,53 @@ export const registerCommands = (bot: Telegraf<any>) => {
 
   bot.on('text', async (ctx) => {
     const text = ctx.message.text.trim();
-    
-    if (!text.startsWith('http://') && !text.startsWith('https://')) return;
-    
-    let isValid = false;
-    try {
-      new URL(text);
-      isValid = true;
-    } catch(e) {}
 
-    if (!isValid) return;
+
+    // Find a URL in the message, even without http(s)://
+    const urlMatch = text.match(/(https?:\/\/[^\s]+|[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}(?:\/[^\s]*)?)/i);
+    if (!urlMatch) return;
+    
+    let url = urlMatch[1];
+    let title = text.replace(url, '').trim();
+    // Optional: strip generic dashes/newlines if they separated them e.g., "Title - https://url"
+    title = title.replace(/^[\n\r\-]+|[\n\r\-]+$/g, '').trim();
+
+    // Auto-prepend https:// if missing
+    if (!url.startsWith('http://') && !url.startsWith('https://')) {
+      url = 'https://' + url;
+    }
+
+    try {
+      new URL(url);
+    } catch(e) {
+      return; // Not a valid URL structure
+    }
 
     await ctx.reply('⏳ Adding your link...');
 
-    let title = 'New Link';
+    if (!title) {
+      title = 'New Link';
+    }
+
     try {
-      const response = await fetch(text, { signal: AbortSignal.timeout(5000) });
+      const response = await fetch(url, { signal: AbortSignal.timeout(5000) });
       const html = await response.text();
       const match = html.match(/<title[^>]*>([^<]+)<\/title>/i);
       if (match && match[1]) {
         title = match[1].trim();
       } else {
-        const u = new URL(text);
+        const u = new URL(url);
         title = (u.hostname + (u.pathname === '/' ? '' : u.pathname)).substring(0, 30);
       }
     } catch (e) {
-      const u = new URL(text);
+      const u = new URL(url);
       title = (u.hostname + (u.pathname === '/' ? '' : u.pathname)).substring(0, 30);
     }
 
     const sectionName = 'Unsorted';
     const item = {
       title: title,
-      url: text,
+      url: url,
       icon: 'fas fa-link'
     };
 
