@@ -1,6 +1,6 @@
 # Telegram Dashy Admin Bot 🤖
 
-A lightweight, secure, and fully Dockerized Telegram bot designed to manage your self-hosted Dashy-style dashboard configuration (`conf.yml`). 
+A lightweight, secure, and fully Dockerized Telegram bot, powered by the [Telegraf](https://telegraf.js.org/) framework, designed to manage your self-hosted Dashy-style dashboard configuration (`conf.yml`). 
 
 By bridging a Telegram chat interface directly to your YAML file, this bot acts as a specialized CRUD (Create, Read, Update, Delete) administrator. It utilizes interactive multi-step wizards for adding items and robust inline-keyboards for modifications, completely removing the hassle of SSH/terminal YAML editing.
 
@@ -20,10 +20,11 @@ Also includes a standalone PHP dashboard to render your conf.yml without Dashy.
 
 ## ✨ Features
 
+- **Telegraf Framework**: Powered by the robust Telegraf framework, leveraging its Scenes architecture for complex, multi-step conversational workflows.
 - **Strict User Authorization**: Locked down via a strict internal allowlist so only you (or designated friends/family) can access the bot functionality.
 - **Smart Link Auto-Add**: Simply dispatch a bare URL message to the bot. It will attempt to scrape the website's title and intelligently categorize the link inside an "Unsorted" boundary.
 - **Atomic File Operations**: Uses a secure temp-file copy/rename pipeline behind the scenes (`.conf.yml.tmp`) ensuring your PHP dashboard never reads a half-written configuration.
-- **Interactive Wizards**: Guides you step-by-step through adding new Items (Title, Description, Icon, Validated URL) using Telegraf's Scenes architecture.
+- **Interactive Wizards**: Guides you step-by-step through adding new Items (Title, Description, Icon, Validated URL).
 - **Clean Inline Keyboards**: Simplifies navigation through deleting configuration elements natively via Telegram's tap interfaces.
 - **Docker First**: Provides multi-stage lightweight builds (Alpine Linux) with drop-in compose files mapping directly to your existing host dashboard config.
 
