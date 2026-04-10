@@ -3,12 +3,7 @@
 A lightweight, secure, and fully Dockerized Telegram bot designed to manage your self-hosted Dashy-style dashboard configuration (`conf.yml`). 
 
 By bridging a Telegram chat interface directly to your YAML file, this bot acts as a specialized CRUD (Create, Read, Update, Delete) administrator. It utilizes interactive multi-step wizards for adding items and robust inline-keyboards for modifications, completely removing the hassle of SSH/terminal YAML editing.
----
 
-
-If you like this project, consider supporting me on [Buy Me a Coffee](https://www.buymeacoffee.com/dominatos) ??
-
----
 ## ✨ Features
 
 - **Strict User Authorization**: Locked down via a strict internal allowlist so only you (or designated friends/family) can access the bot functionality.
@@ -28,7 +23,12 @@ If you like this project, consider supporting me on [Buy Me a Coffee](https://ww
 - **Validation Constraints:** `zod`
 
 ---
+---
 
+
+If you like this project, consider supporting me on [Buy Me a Coffee](https://www.buymeacoffee.com/dominatos) ?☕️
+
+---
 ## 🚀 Setup & Installation
 
 ### 1. Requirements
@@ -135,6 +135,6 @@ Interact with your active Telegram bot using these standard commands:
 ---
 
 
-If you like this project, consider supporting me on [Buy Me a Coffee](https://www.buymeacoffee.com/dominatos) ??
+If you like this project, consider supporting me on [Buy Me a Coffee](https://www.buymeacoffee.com/dominatos) ☕️
 
 ---
