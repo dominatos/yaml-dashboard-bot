@@ -4,6 +4,7 @@ A lightweight, secure, and fully Dockerized Telegram bot designed to manage your
 
 By bridging a Telegram chat interface directly to your YAML file, this bot acts as a specialized CRUD (Create, Read, Update, Delete) administrator. It utilizes interactive multi-step wizards for adding items and robust inline-keyboards for modifications, completely removing the hassle of SSH/terminal YAML editing.
 
+Also includes a standalone PHP dashboard to render your conf.yml without Dashy.
 ## Example Screenshots
 
 <img src="img/screenshot-php-dashboard.jpg" alt="PHP Dashboard">
