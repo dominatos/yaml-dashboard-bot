@@ -130,7 +130,19 @@ export const registerCommands = (bot: Telegraf<any>) => {
       const html = await response.text();
       const match = html.match(/<title[^>]*>([^<]+)<\/title>/i);
       if (match && match[1]) {
-        title = match[1].trim();
+        title = match[1].trim()
+          .replace(/&amp;/g, '&')
+          .replace(/&lt;/g, '<')
+          .replace(/&gt;/g, '>')
+          .replace(/&#39;/g, "'")
+          .replace(/&quot;/g, '"')
+          .replace(/[\r\n\t]+/g, ' ')
+          .replace(/\s+/g, ' ')
+          .replace(/[\x00-\x1F\x7F]/g, ''); // strip control characters
+
+        if (title.length > 50) {
+          title = title.substring(0, 47) + '...';
+        }
       } else {
         const u = new URL(url);
         title = (u.hostname + (u.pathname === '/' ? '' : u.pathname)).substring(0, 30);
