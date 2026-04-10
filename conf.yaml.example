@@ -1,0 +1,156 @@
+pageInfo:
+  title: Example Home Lab
+  description: Self-hosted services, monitoring, media, and finance
+  navLinks:
+    - title: Jellyfin
+      path: https://watch.example.com
+      target: newtab
+    - title: qBittorrent
+      path: http://192.168.X.X:8080
+      target: newtab
+    - title: Torr
+      path: http://192.168.X.X:8090
+      target: newtab
+    - title: Ghostfolio
+      path: http://192.168.X.X:3333/en/home
+      target: newtab
+    - title: Actual Budget
+      path: https://ab.example.com/budget
+      target: newtab
+    - title: Grafana
+      path: http://192.168.X.X:3001/?orgId=1&from=now-6h&to=now&timezone=browser
+      target: newtab
+    - title: Prometheus
+      path: http://192.168.X.X:9090/
+      target: newtab
+    - title: Porttracker
+      path: http://192.168.X.X:4999/
+      target: newtab
+  footerText: Example Home Lab
+appConfig:
+  theme: one-dark
+  layout: vertical
+  iconSize: large
+  language: en
+  defaultOpeningMethod: newtab
+  statusCheck: true
+  statusCheckInterval: 30
+  faviconApi: local
+  defaultIcon: generative
+  routingMode: history
+  hideComponents:
+    hideFooter: false
+    hideSearch: false
+    hideSettings: false
+sections:
+  - name: Media
+    icon: fas fa-photo-video
+    displayData:
+      itemSize: large
+      sectionLayout: grid
+      itemCountX: 3
+    items:
+      - title: Jellyfin
+        description: Media server
+        icon: si-jellyfin
+        url: https://watch.example.com
+        statusCheck: true
+        statusCheckUrl: http://192.168.X.X:8096/
+        subItems:
+          - title: Public
+            url: https://watch.example.com
+            icon: si-jellyfin
+          - title: Local
+            url: http://192.168.X.X:8096
+            icon: si-jellyfin
+      - title: qBittorrent
+        description: Torrent client
+        icon: si-qbittorrent
+        url: http://192.168.X.X:8080
+        statusCheck: true
+        statusCheckUrl: http://192.168.X.X:8080
+      - title: Torr
+        description: Torrent streaming service
+        icon: generative
+        url: http://192.168.X.X:8090
+        statusCheck: true
+        statusCheckUrl: http://192.168.X.X:8090
+  - name: Finance
+    icon: fas fa-chart-line
+    displayData:
+      itemSize: large
+      sectionLayout: grid
+      itemCountX: 2
+    items:
+      - title: Ghostfolio
+        description: Portfolio tracking
+        icon: si-ghostfolio
+        url: http://192.168.X.X:3333/en/home
+        statusCheck: true
+        statusCheckUrl: http://192.168.X.X:3333/
+      - title: Actual Budget
+        description: Personal budgeting
+        icon: si-actualbudget
+        url: https://ab.example.com/budget
+        statusCheck: true
+        statusCheckUrl: https://ab.example.com/
+        subItems:
+          - title: Public
+            url: https://ab.example.com/budget
+            icon: si-actualbudget
+  - name: Monitoring
+    icon: fas fa-heartbeat
+    displayData:
+      itemSize: large
+      sectionLayout: grid
+      itemCountX: 3
+    items:
+      - title: Grafana
+        description: Dashboards and observability
+        icon: si-grafana
+        url: http://192.168.X.X:3001/?orgId=1&from=now-6h&to=now&timezone=browser
+        statusCheck: true
+        statusCheckUrl: http://192.168.X.X:3001/api/health
+      - title: Prometheus
+        description: Metrics collection
+        icon: si-prometheus
+        url: http://192.168.X.X:9090/
+        statusCheck: true
+        statusCheckUrl: http://192.168.X.X:9090/-/healthy
+      - title: Porttracker
+        description: Port and service tracking
+        icon: mdi-lan-connect
+        url: http://192.168.X.X:4999/
+        statusCheck: true
+        statusCheckUrl: http://192.168.X.X:4999/
+  - name: Unsorted
+    items:
+      - title: Code Review - Claude Code Docs
+        url: https://code.claude.com/docs/en/code-review
+        icon: fas fa-link
+      - title: www.imdb.com/it/chart/toptv/
+        url: https://www.imdb.com/it/chart/toptv/
+        icon: fas fa-link
+      - title: /cancel
+        description: /sections
+        icon: /cancel
+        url: https://github.com/dominatos/yaml-dashboard-bot#
+      - title: Page not found · GitHub · GitHub
+        url: https://github.com/dominatos/yaml-dashboard-bot
+        icon: fas fa-link
+      - title: cmdchallenge.com
+        url: https://cmdchallenge.com/
+        icon: fas fa-link
+      - title: MyFastweb - Area Clienti Fastweb
+        url: https://www.fastweb.it/myfastweb/
+        icon: fas fa-link
+      - title: "GitHub - trimstray/test-your-sysadmin-skills: A collection of Linux
+          Sysadmin Test Questions and Answers. Test your knowledge and skills in
+          different fields with these Q/A. · GitHub"
+        url: https://github.com/trimstray/test-your-sysadmin-skills
+        icon: fas fa-link
+      - title: cmdchallenge.com
+        url: https://cmdchallenge.com/
+        icon: fas fa-link
+  - name: test
+    items: []

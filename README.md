@@ -4,6 +4,19 @@ A lightweight, secure, and fully Dockerized Telegram bot designed to manage your
 
 By bridging a Telegram chat interface directly to your YAML file, this bot acts as a specialized CRUD (Create, Read, Update, Delete) administrator. It utilizes interactive multi-step wizards for adding items and robust inline-keyboards for modifications, completely removing the hassle of SSH/terminal YAML editing.
 
+## Example Screenshots
+
+<img src="img/screenshot-php-dashboard.jpg" alt="PHP Dashboard">
+
+<details>
+<summary>Screenshots from Telegram Bot</summary>
+<img src="img/start.jpg" alt="Bot Start">
+<img src="img/sections.jpg" alt="Sections">
+<img src="img/items-button-edit.jpg" alt="Items Edit">
+<img src="img/addbutton-pipeline.jpg" alt="Add Pipeline">
+<img src="img/fastadd.jpg" alt="Fast Add">
+</details>
+
 ## ✨ Features
 
 - **Strict User Authorization**: Locked down via a strict internal allowlist so only you (or designated friends/family) can access the bot functionality.
@@ -167,6 +180,8 @@ Interact with your active Telegram bot using these standard commands:
 
 ## 🗃️ Folder Structure
 ```text
+index.php                  # PHP Dashboard
+conf.yml                   # YAML Configuration
 /tg-admin-bot/
 ├── src/
 │   ├── index.ts           # Telegraf polling entry point 
