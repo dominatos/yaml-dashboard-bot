@@ -5,11 +5,7 @@ export const registerCommands = (bot: Telegraf<any>) => {
   bot.command('start', (ctx) => {
     ctx.reply(
       '👋 Welcome to the Dashy Admin Bot!\n\nUse /help to see all available commands.',
-      Markup.keyboard([
-        ['/sections', '/items'], 
-        ['/add', '/edit', '/delete'], 
-        ['/cancel']
-      ]).resize()
+      Markup.removeKeyboard()
     );
   });
 
@@ -82,10 +78,9 @@ export const registerCommands = (bot: Telegraf<any>) => {
     if (!sections.length) return ctx.reply('No sections/items found.');
 
     const buttons: any[] = [];
-    sections.forEach((s) => {
-      s.items?.forEach((i) => {
-        // limit callback data to 64 bytes
-        const cbData = `del_${s.name}_${i.title}`.substring(0, 64);
+    sections.forEach((s, sIndex) => {
+      s.items?.forEach((i, iIndex) => {
+        const cbData = `del_${sIndex}_${iIndex}`;
         buttons.push([Markup.button.callback(`🗑️ ${i.title} (${s.name})`, cbData)]);
       });
     });

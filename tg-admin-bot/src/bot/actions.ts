@@ -34,9 +34,9 @@ export const registerActions = (bot: Telegraf<any>) => {
     if (!sections.length) return ctx.reply('No sections/items found.');
     
     const buttons: any[] = [];
-    sections.forEach((s) => {
-      s.items?.forEach((i) => {
-        const cbData = `del_${s.name}_${i.title}`.substring(0, 64);
+    sections.forEach((s, sIndex) => {
+      s.items?.forEach((i, iIndex) => {
+        const cbData = `del_${sIndex}_${iIndex}`;
         buttons.push([Markup.button.callback(`🗑️ ${i.title} (${s.name})`, cbData)]);
       });
     });
@@ -45,11 +45,21 @@ export const registerActions = (bot: Telegraf<any>) => {
     await ctx.reply('Select an item to delete:', Markup.inlineKeyboard(buttons));
   });
 
-  bot.action(/del_(.+)_(.+)/, async (ctx) => {
+  bot.action(/del_(\d+)_(\d+)/, async (ctx) => {
     try {
       if (!ctx.match) return;
-      const sectionName = ctx.match[1];
-      const itemTitle = ctx.match[2];
+      const sIndex = parseInt(ctx.match[1], 10);
+      const iIndex = parseInt(ctx.match[2], 10);
+
+      const sections = yamlAdmin.getSections();
+      const section = sections[sIndex];
+      const itemTitle = section?.items?.[iIndex]?.title;
+      const sectionName = section?.name;
+
+      if (!sectionName || !itemTitle) {
+        await ctx.answerCbQuery('Item not found.', { show_alert: true });
+        return;
+      }
 
       const success = yamlAdmin.deleteItem(sectionName, itemTitle);
       

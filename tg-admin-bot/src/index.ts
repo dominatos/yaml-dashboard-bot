@@ -40,6 +40,18 @@ const stopProcess = (signal: string) => {
 // Start the bot
 bot.launch(() => {
   logger.info(`🤖 Telegram Admin Bot started successfully in polling mode.`);
+  
+  // Register commands for the native bot Menu
+  bot.telegram.setMyCommands([
+    { command: 'sections', description: 'List all sections' },
+    { command: 'items', description: 'List all items' },
+    { command: 'add', description: 'Add a new item' },
+    { command: 'delete', description: 'Delete an item' },
+    { command: 'edit', description: 'Edit an item' },
+    { command: 'add_section', description: 'Create a new section' },
+    { command: 'manage_sections', description: 'Rename, Move items, or Delete Sections' },
+    { command: 'cancel', description: 'Cancel any current operation' }
+  ]).catch(err => logger.error({ err }, 'Failed to set commands menu'));
 }).catch((err) => {
   logger.fatal({ err }, 'Failed to start bot');
   process.exit(1);

@@ -20,7 +20,7 @@ export const addItemScene = new Scenes.WizardScene(
       await ctx.reply('No sections exist. Create one by typing its name:');
       return ctx.wizard.next();
     }
-    const buttons = sections.map(s => Markup.button.callback(s.name, `select_section_${s.name}`));
+    const buttons = sections.map((s, idx) => Markup.button.callback(s.name, `select_section_${idx}`));
     await ctx.reply('Select a section or type a new section name:', Markup.inlineKeyboard(buttons, { columns: 2 }));
     return ctx.wizard.next();
   },
@@ -28,7 +28,8 @@ export const addItemScene = new Scenes.WizardScene(
     if (ctx.callbackQuery) {
       const data = ctx.callbackQuery.data;
       if (data.startsWith('select_section_')) {
-        ctx.wizard.state.sectionName = data.replace('select_section_', '');
+        const idx = parseInt(data.replace('select_section_', ''), 10);
+        ctx.wizard.state.sectionName = yamlAdmin.getSections()[idx]?.name || 'Unsorted';
         await ctx.answerCbQuery();
       }
     } else if (ctx.message && 'text' in ctx.message) {
@@ -123,9 +124,9 @@ export const editItemScene = new Scenes.WizardScene(
   async (ctx: any) => {
     const sections = yamlAdmin.getSections();
     const buttons: any[] = [];
-    sections.forEach(s => {
-      s.items?.forEach(i => {
-        const cb = `edi_${s.name}_${i.title}`.substring(0, 64);
+    sections.forEach((s, sIdx) => {
+      s.items?.forEach((i, iIdx) => {
+        const cb = `edi_${sIdx}_${iIdx}`;
         buttons.push([Markup.button.callback(`${i.title} (${s.name})`, cb)]);
       });
     });
@@ -139,9 +140,18 @@ export const editItemScene = new Scenes.WizardScene(
   async (ctx: any) => {
     if (ctx.callbackQuery && ctx.callbackQuery.data.startsWith('edi_')) {
       const data = ctx.callbackQuery.data.split('_'); 
-      data.shift(); // remove 'edi'
-      const sectionName = data[0];
-      const title = data.slice(1).join('_');
+      const sIdx = parseInt(data[1], 10);
+      const iIdx = parseInt(data[2], 10);
+      
+      const sections = yamlAdmin.getSections();
+      const sectionName = sections[sIdx]?.name;
+      const title = sections[sIdx]?.items?.[iIdx]?.title;
+      
+      if (!sectionName || !title) {
+        await ctx.answerCbQuery('Item not found.', { show_alert: true });
+        return ctx.scene.leave();
+      }
+
       ctx.wizard.state.sectionName = sectionName;
       ctx.wizard.state.oldTitle = title;
       await ctx.answerCbQuery();
@@ -187,13 +197,14 @@ export const manageSectionScene = new Scenes.WizardScene(
       await ctx.reply('No sections found.');
       return ctx.scene.leave();
     }
-    const buttons = sections.map(s => Markup.button.callback(s.name, `selsec_${s.name}`));
+    const buttons = sections.map((s, idx) => Markup.button.callback(s.name, `selsec_${idx}`));
     await ctx.reply('Select a section to manage:', Markup.inlineKeyboard(buttons, { columns: 2 }));
     return ctx.wizard.next();
   },
   async (ctx: any) => {
     if (ctx.callbackQuery && ctx.callbackQuery.data.startsWith('selsec_')) {
-      ctx.wizard.state.sectionName = ctx.callbackQuery.data.replace('selsec_', '');
+      const idx = parseInt(ctx.callbackQuery.data.replace('selsec_', ''), 10);
+      ctx.wizard.state.sectionName = yamlAdmin.getSections()[idx]?.name || '';
       await ctx.answerCbQuery();
       
       if (ctx.wizard.state.sectionName === 'Unsorted') {
@@ -288,13 +299,21 @@ export const manageSectionScene = new Scenes.WizardScene(
       if (mode === 'move') {
         if (data === 'move_all') {
            const sections = yamlAdmin.getSections().filter(s => s.name !== sectionName);
-           const buttons = sections.map(s => Markup.button.callback(s.name, `dest_${s.name}`));
-           if (!buttons.length) buttons.push(Markup.button.callback('Create Unsorted', 'dest_Unsorted'));
+           const buttons = sections.map(s => {
+             const idx = yamlAdmin.getSections().findIndex(x => x.name === s.name);
+             return Markup.button.callback(s.name, `dest_${idx}`);
+           });
+           if (!buttons.length) buttons.push(Markup.button.callback('Create Unsorted', 'dest_unsorted'));
            
            await ctx.reply('Select destination section:', Markup.inlineKeyboard(buttons, { columns: 2 }));
            return; // stay in state for destination click
         } else if (data.startsWith('dest_')) {
-           const destSection = data.replace('dest_', '');
+           const destVal = data.replace('dest_', '');
+           let destSection = 'Unsorted';
+           if (destVal !== 'unsorted') {
+             const idx = parseInt(destVal, 10);
+             destSection = yamlAdmin.getSections()[idx]?.name || 'Unsorted';
+           }
            const sec = yamlAdmin.getSection(sectionName);
            if (!sec || !sec.items) {
              await ctx.reply('❌ Error tracking items.'); 
@@ -314,9 +333,9 @@ export const moveItemScene = new Scenes.WizardScene(
   async (ctx: any) => {
     const sections = yamlAdmin.getSections();
     const buttons: any[] = [];
-    sections.forEach(s => {
-      s.items?.forEach(i => {
-        const cb = `mov_${s.name}_${i.title}`.substring(0, 64);
+    sections.forEach((s, sIdx) => {
+      s.items?.forEach((i, iIdx) => {
+        const cb = `mov_${sIdx}_${iIdx}`;
         buttons.push([Markup.button.callback(`${i.title} (${s.name})`, cb)]);
       });
     });
@@ -330,16 +349,28 @@ export const moveItemScene = new Scenes.WizardScene(
   async (ctx: any) => {
     if (ctx.callbackQuery && ctx.callbackQuery.data.startsWith('mov_')) {
       const data = ctx.callbackQuery.data.split('_'); 
-      data.shift(); // remove 'mov'
-      const sectionName = data[0];
-      const title = data.slice(1).join('_');
+      const sIdx = parseInt(data[1], 10);
+      const iIdx = parseInt(data[2], 10);
+      
+      const sections = yamlAdmin.getSections();
+      const sectionName = sections[sIdx]?.name;
+      const title = sections[sIdx]?.items?.[iIdx]?.title;
+      
+      if (!sectionName || !title) {
+        await ctx.answerCbQuery('Item not found.', { show_alert: true });
+        return ctx.scene.leave();
+      }
+      
       ctx.wizard.state.sectionName = sectionName;
       ctx.wizard.state.itemTitle = title;
       await ctx.answerCbQuery();
       
-      const sections = yamlAdmin.getSections().filter(s => s.name !== sectionName);
-      const buttons = sections.map(s => Markup.button.callback(s.name, `dest_${s.name}`));
-      if (!buttons.length) buttons.push(Markup.button.callback('Create Unsorted', 'dest_Unsorted'));
+      const sectionsRemaining = yamlAdmin.getSections().filter(s => s.name !== sectionName);
+      const buttons = sectionsRemaining.map(s => {
+         const idx = yamlAdmin.getSections().findIndex(x => x.name === s.name);
+         return Markup.button.callback(s.name, `dest_${idx}`);
+      });
+      if (!buttons.length) buttons.push(Markup.button.callback('Create Unsorted', 'dest_unsorted'));
       
       await ctx.reply(`Move "${title}" to which section?`, Markup.inlineKeyboard(buttons, { columns: 2 }));
       return ctx.wizard.next();
@@ -347,7 +378,13 @@ export const moveItemScene = new Scenes.WizardScene(
   },
   async (ctx: any) => {
     if (ctx.callbackQuery && ctx.callbackQuery.data.startsWith('dest_')) {
-      const destSection = ctx.callbackQuery.data.replace('dest_', '');
+      const destVal = ctx.callbackQuery.data.replace('dest_', '');
+      let destSection = 'Unsorted';
+      if (destVal !== 'unsorted') {
+        const idx = parseInt(destVal, 10);
+        destSection = yamlAdmin.getSections()[idx]?.name || 'Unsorted';
+      }
+      
       const { sectionName, itemTitle } = ctx.wizard.state;
       await ctx.answerCbQuery();
       
