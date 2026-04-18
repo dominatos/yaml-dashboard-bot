@@ -1,0 +1,34 @@
+# yaml-language-server: $schema=https://coderabbit.ai/integrations/schema.v2.json
+language: "en-US"
+early_access: false
+
+reviews:
+  profile: "chill"
+  request_changes_workflow: false
+  high_level_summary: true
+  review_status: true
+  review_details: true
+  path_filters:
+    - "**"
+    - "!**/.git/**"
+    - "!**/node_modules/**"
+    - "!**/dist/**"
+    - "!**/build/**"
+    - "!**/*.lock"
+  path_instructions:
+    - path: "**/*.{yml,yaml}"
+      instructions: |
+        Focus on schema consistency, duplicate keys, invalid nesting, implicit type surprises, missing validation, and backward compatibility of config structure.
+    - path: "**/*.{js,ts,py,php}"
+      instructions: |
+        Focus on config parsing, normalization, error messages, validation boundaries, and safe handling of malformed user input.
+    - path: "**/*.md"
+      instructions: |
+        Review setup docs and examples for correctness and copy-paste safety.
+
+auto_review:
+  enabled: true
+  drafts: false
+
+chat:
+  auto_reply: true
