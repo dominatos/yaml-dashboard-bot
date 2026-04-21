@@ -11,7 +11,9 @@ dotenv_1.default.config();
 const envSchema = zod_1.z.object({
     BOT_TOKEN: zod_1.z.string().min(1, "BOT_TOKEN is required"),
     ALLOWED_USER_IDS: zod_1.z.string().min(1, "ALLOWED_USER_IDS is required")
-        .transform((str) => str.split(',').map((id) => parseInt(id.trim(), 10)).filter((id) => !isNaN(id))),
+        .transform(str => str.split(',').map(id => id.trim()))
+        .refine(tokens => tokens.every(token => /^\d+$/.test(token)), { message: "ALLOWED_USER_IDS must be a comma-separated list of numeric Telegram IDs" })
+        .transform(tokens => tokens.map(id => parseInt(id, 10))),
     CONF_PATH: zod_1.z.string().default(path_1.default.resolve(process.cwd(), '../conf.yml')),
     LOG_LEVEL: zod_1.z.string().default('info'),
 });

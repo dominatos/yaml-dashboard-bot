@@ -125,34 +125,14 @@ sections:
         statusCheckUrl: http://192.168.X.X:4999/
   - name: Unsorted
     items:
-      - title: Code Review - Claude Code Docs
-        url: https://code.claude.com/docs/en/code-review
+      - title: Example Documentation
+        url: https://example.com/docs
+        icon: fas fa-book
+      - title: Example Project
+        url: https://github.com/example/project
+        icon: si-github
+      - title: Placeholder Link
+        url: https://example.org
         icon: fas fa-link
-      - title: www.imdb.com/it/chart/toptv/
-        url: https://www.imdb.com/it/chart/toptv/
-        icon: fas fa-link
-      - title: /cancel
-        description: /sections
-        icon: /cancel
-        url: https://github.com/dominatos/yaml-dashboard-bot#
-      - title: Page not found · GitHub · GitHub
-        url: https://github.com/dominatos/yaml-dashboard-bot
-        icon: fas fa-link
-      - title: cmdchallenge.com
-        url: https://cmdchallenge.com/
-        icon: fas fa-link
-      - title: MyFastweb - Area Clienti Fastweb
-        url: https://www.fastweb.it/myfastweb/
-        icon: fas fa-link
-      - title: "GitHub - trimstray/test-your-sysadmin-skills: A collection of Linux
-          Sysadmin Test Questions and Answers. Test your knowledge and skills in
-          different fields with these Q/A. · GitHub"
-        url: https://github.com/trimstray/test-your-sysadmin-skills
-        icon: fas fa-link
-      - title: cmdchallenge.com
-        url: https://cmdchallenge.com/
-        icon: fas fa-link
-  - name: test
-    items: []
 
 # codded by https://github.com/dominatos

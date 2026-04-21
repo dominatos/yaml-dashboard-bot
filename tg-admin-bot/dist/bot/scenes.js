@@ -3,11 +3,12 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.stage = exports.moveItemScene = exports.manageSectionScene = exports.editItemScene = exports.addSectionScene = exports.addItemScene = void 0;
 const telegraf_1 = require("telegraf");
 const yamlAdmin_1 = require("../service/yamlAdmin");
+const cleanup_1 = require("../utils/cleanup");
 // Basic URL validation
 const isValidUrl = (url) => {
     try {
-        new URL(url);
-        return true;
+        const u = new URL(url);
+        return u.protocol === 'http:' || u.protocol === 'https:';
     }
     catch (e) {
         return false;
@@ -20,15 +21,18 @@ exports.addItemScene = new telegraf_1.Scenes.WizardScene('ADD_ITEM_SCENE', async
         await ctx.reply('No sections exist. Create one by typing its name:');
         return ctx.wizard.next();
     }
-    const buttons = sections.map((s, idx) => telegraf_1.Markup.button.callback(s.name, `select_section_${idx}`));
+    const buttons = sections.map((s) => {
+        const payload = `select_section_${s.name}`.substring(0, 64);
+        return telegraf_1.Markup.button.callback(s.name, payload);
+    });
     await ctx.reply('Select a section or type a new section name:', telegraf_1.Markup.inlineKeyboard(buttons, { columns: 2 }));
     return ctx.wizard.next();
 }, async (ctx) => {
     if (ctx.callbackQuery) {
         const data = ctx.callbackQuery.data;
         if (data.startsWith('select_section_')) {
-            const idx = parseInt(data.replace('select_section_', ''), 10);
-            ctx.wizard.state.sectionName = yamlAdmin_1.yamlAdmin.getSections()[idx]?.name || 'Unsorted';
+            const name = data.replace('select_section_', '');
+            ctx.wizard.state.sectionName = name || 'Unsorted';
             await ctx.answerCbQuery();
         }
     }
@@ -42,26 +46,32 @@ exports.addItemScene = new telegraf_1.Scenes.WizardScene('ADD_ITEM_SCENE', async
     await ctx.reply('Great. Send me the TITLE for the new item:');
     return ctx.wizard.next();
 }, async (ctx) => {
-    if (!ctx.message || !('text' in ctx.message))
+    if (!ctx.message || !('text' in ctx.message)) {
+        await ctx.reply('Please send valid text for the title.');
         return;
+    }
     ctx.wizard.state.item.title = ctx.message.text.trim();
     await ctx.reply('Got it. Send a DESCRIPTION (or send /skip to leave empty):');
     return ctx.wizard.next();
 }, async (ctx) => {
-    if (ctx.message && 'text' in ctx.message) {
-        const text = ctx.message.text.trim();
-        if (text !== '/skip') {
-            ctx.wizard.state.item.description = text;
-        }
+    if (!ctx.message || !('text' in ctx.message)) {
+        await ctx.reply('Please send text or /skip to leave empty.');
+        return;
+    }
+    const text = ctx.message.text.trim();
+    if (text !== '/skip') {
+        ctx.wizard.state.item.description = text;
     }
     await ctx.reply('Send an ICON (e.g., si-github, mdi-server) or /skip:');
     return ctx.wizard.next();
 }, async (ctx) => {
-    if (ctx.message && 'text' in ctx.message) {
-        const text = ctx.message.text.trim();
-        if (text !== '/skip') {
-            ctx.wizard.state.item.icon = text;
-        }
+    if (!ctx.message || !('text' in ctx.message)) {
+        await ctx.reply('Please send text or /skip to leave empty.');
+        return;
+    }
+    const text = ctx.message.text.trim();
+    if (text !== '/skip') {
+        ctx.wizard.state.item.icon = text;
     }
     await ctx.reply('Send the URL:');
     return ctx.wizard.next();
@@ -79,6 +89,7 @@ exports.addItemScene = new telegraf_1.Scenes.WizardScene('ADD_ITEM_SCENE', async
     }
     const { sectionName, item } = ctx.wizard.state;
     const success = yamlAdmin_1.yamlAdmin.addItem(sectionName, item);
+    await (0, cleanup_1.cleanupBotMessages)(ctx);
     if (success) {
         await ctx.reply(`✅ Item "${item.title}" successfully added to section "${sectionName}".`);
     }
@@ -91,20 +102,25 @@ exports.addSectionScene = new telegraf_1.Scenes.WizardScene('ADD_SECTION_SCENE',
     await ctx.reply('Send me the new Section name:');
     return ctx.wizard.next();
 }, async (ctx) => {
-    if (!ctx.message || !('text' in ctx.message))
+    if (!ctx.message || !('text' in ctx.message)) {
+        await ctx.reply('Please send text for the section name.');
         return;
+    }
     const name = ctx.message.text.trim();
     ctx.wizard.state.sectionName = name;
     await ctx.reply('Send an ICON (e.g., fas fa-folder) or /skip:');
     return ctx.wizard.next();
 }, async (ctx) => {
-    let icon = undefined;
-    if (ctx.message && 'text' in ctx.message) {
-        const text = ctx.message.text.trim();
-        if (text !== '/skip')
-            icon = text;
+    if (!ctx.message || !('text' in ctx.message)) {
+        await ctx.reply('Please send text or /skip to leave empty.');
+        return;
     }
+    let icon = undefined;
+    const text = ctx.message.text.trim();
+    if (text !== '/skip')
+        icon = text;
     const success = yamlAdmin_1.yamlAdmin.addSection(ctx.wizard.state.sectionName, icon);
+    await (0, cleanup_1.cleanupBotMessages)(ctx);
     if (success) {
         await ctx.reply(`✅ Section added successfully.`);
     }
@@ -124,6 +140,7 @@ exports.editItemScene = new telegraf_1.Scenes.WizardScene('EDIT_ITEM_SCENE', asy
     });
     if (!buttons.length) {
         await ctx.reply('No items to edit.');
+        await (0, cleanup_1.cleanupBotMessages)(ctx);
         return ctx.scene.leave();
     }
     await ctx.reply('Select an item to edit:', telegraf_1.Markup.inlineKeyboard(buttons));
@@ -138,6 +155,7 @@ exports.editItemScene = new telegraf_1.Scenes.WizardScene('EDIT_ITEM_SCENE', asy
         const title = sections[sIdx]?.items?.[iIdx]?.title;
         if (!sectionName || !title) {
             await ctx.answerCbQuery('Item not found.', { show_alert: true });
+            await (0, cleanup_1.cleanupBotMessages)(ctx);
             return ctx.scene.leave();
         }
         ctx.wizard.state.sectionName = sectionName;
@@ -149,12 +167,20 @@ exports.editItemScene = new telegraf_1.Scenes.WizardScene('EDIT_ITEM_SCENE', asy
         ]));
         return ctx.wizard.next();
     }
+    if (ctx.callbackQuery) {
+        await ctx.answerCbQuery();
+        return;
+    }
 }, async (ctx) => {
     if (ctx.callbackQuery && ctx.callbackQuery.data.startsWith('prop_')) {
         ctx.wizard.state.propToEdit = ctx.callbackQuery.data.replace('prop_', '');
         await ctx.answerCbQuery();
         await ctx.reply(`Send the new value for ${ctx.wizard.state.propToEdit.toUpperCase()}:`);
         return ctx.wizard.next();
+    }
+    if (ctx.callbackQuery) {
+        await ctx.answerCbQuery();
+        return;
     }
 }, async (ctx) => {
     if (ctx.message && 'text' in ctx.message) {
@@ -163,6 +189,7 @@ exports.editItemScene = new telegraf_1.Scenes.WizardScene('EDIT_ITEM_SCENE', asy
         const updatedProps = {};
         updatedProps[propToEdit] = val;
         const success = yamlAdmin_1.yamlAdmin.editItem(sectionName, oldTitle, updatedProps);
+        await (0, cleanup_1.cleanupBotMessages)(ctx);
         if (success) {
             await ctx.reply(`✅ Item updated successfully.`);
         }
@@ -176,6 +203,7 @@ exports.manageSectionScene = new telegraf_1.Scenes.WizardScene('MANAGE_SECTION_S
     const sections = yamlAdmin_1.yamlAdmin.getSections();
     if (!sections.length) {
         await ctx.reply('No sections found.');
+        await (0, cleanup_1.cleanupBotMessages)(ctx);
         return ctx.scene.leave();
     }
     const buttons = sections.map((s, idx) => telegraf_1.Markup.button.callback(s.name, `selsec_${idx}`));
@@ -224,6 +252,7 @@ exports.manageSectionScene = new telegraf_1.Scenes.WizardScene('MANAGE_SECTION_S
         const sec = sections.find(s => s.name === ctx.wizard.state.sectionName);
         if (!sec || !sec.items || sec.items.length === 0) {
             await ctx.reply('No items to move.');
+            await (0, cleanup_1.cleanupBotMessages)(ctx);
             return ctx.scene.leave();
         }
         // We will move all items for MVP. Let's just do Move All directly to make logic clean.
@@ -238,6 +267,7 @@ exports.manageSectionScene = new telegraf_1.Scenes.WizardScene('MANAGE_SECTION_S
     if (mode === 'rename' && ctx.message && 'text' in ctx.message) {
         const newName = ctx.message.text.trim();
         const success = yamlAdmin_1.yamlAdmin.editSection(sectionName, newName);
+        await (0, cleanup_1.cleanupBotMessages)(ctx);
         await ctx.reply(success ? `✅ Section renamed to "${newName}".` : '❌ Failed to rename.');
         return ctx.scene.leave();
     }
@@ -246,26 +276,46 @@ exports.manageSectionScene = new telegraf_1.Scenes.WizardScene('MANAGE_SECTION_S
         await ctx.answerCbQuery();
         if (data === 'cancel') {
             await ctx.reply('Cancelled operation.');
+            await (0, cleanup_1.cleanupBotMessages)(ctx);
             return ctx.scene.leave();
         }
         if (mode === 'delete') {
             const sec = yamlAdmin_1.yamlAdmin.getSection(sectionName);
             if (!sec) {
                 await ctx.reply('❌ Section not found.');
+                await (0, cleanup_1.cleanupBotMessages)(ctx);
                 return ctx.scene.leave();
             }
             if (data === 'del_all') {
-                yamlAdmin_1.yamlAdmin.deleteSection(sectionName);
-                await ctx.reply(`✅ Destroyed "${sectionName}".`);
+                const success = yamlAdmin_1.yamlAdmin.deleteSection(sectionName);
+                await (0, cleanup_1.cleanupBotMessages)(ctx);
+                if (success) {
+                    await ctx.reply(`✅ Destroyed "${sectionName}".`);
+                }
+                else {
+                    await ctx.reply(`❌ Failed to destroy "${sectionName}".`);
+                }
                 return ctx.scene.leave();
             }
             else if (data === 'del_keep_unsorted') {
                 const items = sec.items || [];
+                let moveSuccess = true;
                 if (items.length > 0) {
-                    yamlAdmin_1.yamlAdmin.moveItems(items.map((i) => i.title), sectionName, 'Unsorted');
+                    moveSuccess = yamlAdmin_1.yamlAdmin.moveItems(items.map((i) => i.title), sectionName, 'Unsorted');
                 }
-                yamlAdmin_1.yamlAdmin.deleteSection(sectionName);
-                await ctx.reply(`✅ Deleted "${sectionName}", protected items safely moved to Unsorted.`);
+                await (0, cleanup_1.cleanupBotMessages)(ctx);
+                if (!moveSuccess && items.length > 0) {
+                    await ctx.reply(`❌ Failed to move items, aborting deletion of "${sectionName}".`);
+                }
+                else {
+                    const delSuccess = yamlAdmin_1.yamlAdmin.deleteSection(sectionName);
+                    if (delSuccess) {
+                        await ctx.reply(`✅ Deleted "${sectionName}", protected items safely moved to Unsorted.`);
+                    }
+                    else {
+                        await ctx.reply(`❌ Failed to delete "${sectionName}".`);
+                    }
+                }
                 return ctx.scene.leave();
             }
         }
@@ -291,10 +341,17 @@ exports.manageSectionScene = new telegraf_1.Scenes.WizardScene('MANAGE_SECTION_S
                 const sec = yamlAdmin_1.yamlAdmin.getSection(sectionName);
                 if (!sec || !sec.items) {
                     await ctx.reply('❌ Error tracking items.');
+                    await (0, cleanup_1.cleanupBotMessages)(ctx);
                     return ctx.scene.leave();
                 }
-                yamlAdmin_1.yamlAdmin.moveItems(sec.items.map((i) => i.title), sectionName, destSection);
-                await ctx.reply(`✅ Moved all items seamlessly to "${destSection}".`);
+                const success = yamlAdmin_1.yamlAdmin.moveItems(sec.items.map((i) => i.title), sectionName, destSection);
+                await (0, cleanup_1.cleanupBotMessages)(ctx);
+                if (success) {
+                    await ctx.reply(`✅ Moved all items seamlessly to "${destSection}".`);
+                }
+                else {
+                    await ctx.reply(`❌ Failed to move items to "${destSection}".`);
+                }
                 return ctx.scene.leave();
             }
         }
@@ -311,6 +368,7 @@ exports.moveItemScene = new telegraf_1.Scenes.WizardScene('MOVE_ITEM_SCENE', asy
     });
     if (!buttons.length) {
         await ctx.reply('No items found to move.');
+        await (0, cleanup_1.cleanupBotMessages)(ctx);
         return ctx.scene.leave();
     }
     await ctx.reply('Select an item to move:', telegraf_1.Markup.inlineKeyboard(buttons));
@@ -325,6 +383,7 @@ exports.moveItemScene = new telegraf_1.Scenes.WizardScene('MOVE_ITEM_SCENE', asy
         const title = sections[sIdx]?.items?.[iIdx]?.title;
         if (!sectionName || !title) {
             await ctx.answerCbQuery('Item not found.', { show_alert: true });
+            await (0, cleanup_1.cleanupBotMessages)(ctx);
             return ctx.scene.leave();
         }
         ctx.wizard.state.sectionName = sectionName;
@@ -351,6 +410,7 @@ exports.moveItemScene = new telegraf_1.Scenes.WizardScene('MOVE_ITEM_SCENE', asy
         const { sectionName, itemTitle } = ctx.wizard.state;
         await ctx.answerCbQuery();
         const success = yamlAdmin_1.yamlAdmin.moveItems([itemTitle], sectionName, destSection);
+        await (0, cleanup_1.cleanupBotMessages)(ctx);
         if (success) {
             await ctx.reply(`✅ Item "${itemTitle}" successfully moved to "${destSection}".`);
         }

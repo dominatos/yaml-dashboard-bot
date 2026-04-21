@@ -1,6 +1,7 @@
 import { Telegraf, Markup } from 'telegraf';
 import { yamlAdmin } from '../service/yamlAdmin';
 import { logger } from '../utils/logger';
+import { cleanupBotMessages } from '../utils/cleanup';
 
 export const registerActions = (bot: Telegraf<any>) => {
   bot.action('action_add_section', async (ctx) => {
@@ -34,41 +35,39 @@ export const registerActions = (bot: Telegraf<any>) => {
     if (!sections.length) return ctx.reply('No sections/items found.');
     
     const buttons: any[] = [];
-    sections.forEach((s, sIndex) => {
-      s.items?.forEach((i, iIndex) => {
-        const cbData = `del_${sIndex}_${iIndex}`;
+    sections.forEach((s) => {
+      s.items?.forEach((i) => {
+        const cbData = `del_${i.id}`;
         buttons.push([Markup.button.callback(`🗑️ ${i.title} (${s.name})`, cbData)]);
       });
     });
 
     if (buttons.length === 0) return ctx.reply('No items to delete.');
+    await cleanupBotMessages(ctx);
     await ctx.reply('Select an item to delete:', Markup.inlineKeyboard(buttons));
   });
 
-  bot.action(/del_(\d+)_(\d+)/, async (ctx) => {
+  bot.action(/del_(.+)/, async (ctx) => {
     try {
       if (!ctx.match) return;
-      const sIndex = parseInt(ctx.match[1], 10);
-      const iIndex = parseInt(ctx.match[2], 10);
+      const itemId = ctx.match[1];
 
-      const sections = yamlAdmin.getSections();
-      const section = sections[sIndex];
-      const itemTitle = section?.items?.[iIndex]?.title;
-      const sectionName = section?.name;
-
-      if (!sectionName || !itemTitle) {
+      const itemInfo = yamlAdmin.getItemById(itemId);
+      if (!itemInfo) {
         await ctx.answerCbQuery('Item not found.', { show_alert: true });
         return;
       }
 
-      const success = yamlAdmin.deleteItem(sectionName, itemTitle);
+      const { section, item } = itemInfo;
+      const success = yamlAdmin.deleteItemById(itemId);
       
+      await cleanupBotMessages(ctx);
       if (success) {
         await ctx.answerCbQuery('Item deleted successfully!');
-        await ctx.editMessageText(`✅ Deleted "${itemTitle}" from "${sectionName}"`);
+        await ctx.editMessageText(`✅ Deleted "${item.title}" from "${section.name}"`);
       } else {
         await ctx.answerCbQuery('Failed to delete item.', { show_alert: true });
-        await ctx.editMessageText(`❌ Failed to delete "${itemTitle}". It may not exist.`);
+        await ctx.editMessageText(`❌ Failed to delete "${item.title}". It may not exist.`);
       }
     } catch (e) {
       logger.error({ err: e }, 'Error in delete action');

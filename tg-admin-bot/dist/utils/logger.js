@@ -8,13 +8,15 @@ const pino_1 = __importDefault(require("pino"));
 const config_1 = require("../config");
 exports.logger = (0, pino_1.default)({
     level: config_1.env.LOG_LEVEL || 'info',
-    transport: {
-        target: 'pino-pretty',
-        options: {
-            colorize: true,
-            translateTime: 'SYS:standard',
-            ignore: 'pid,hostname',
+    ...(process.env.NODE_ENV !== 'production' && {
+        transport: {
+            target: 'pino-pretty',
+            options: {
+                colorize: true,
+                translateTime: 'SYS:standard',
+                ignore: 'pid,hostname',
+            },
         },
-    },
+    }),
 });
 // codded by https://github.com/dominatos

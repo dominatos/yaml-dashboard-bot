@@ -6,6 +6,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.yamlAdmin = exports.YamlAdmin = void 0;
 const fs_1 = __importDefault(require("fs"));
 const yaml_1 = __importDefault(require("yaml"));
+const crypto_1 = __importDefault(require("crypto"));
 const config_1 = require("../config");
 const logger_1 = require("../utils/logger");
 class YamlAdmin {
@@ -53,7 +54,21 @@ class YamlAdmin {
     }
     getSections() {
         const config = this.readConfig();
-        return config?.sections || [];
+        if (!config)
+            return [];
+        let modified = false;
+        config.sections?.forEach(s => {
+            s.items?.forEach(i => {
+                if (!i.id) {
+                    i.id = crypto_1.default.randomBytes(4).toString('hex');
+                    modified = true;
+                }
+            });
+        });
+        if (modified) {
+            this.writeConfig(config);
+        }
+        return config.sections || [];
     }
     getSection(sectionName) {
         return this.getSections().find(s => s.name === sectionName);
@@ -73,6 +88,9 @@ class YamlAdmin {
         }
         if (!section.items) {
             section.items = [];
+        }
+        if (!item.id) {
+            item.id = crypto_1.default.randomBytes(4).toString('hex');
         }
         section.items.push(item);
         return this.writeConfig(config);
@@ -103,6 +121,38 @@ class YamlAdmin {
             return false; // not found
         return this.writeConfig(config);
     }
+    getItemById(id) {
+        const config = this.readConfig();
+        if (!config || !config.sections)
+            return null;
+        for (const section of config.sections) {
+            if (section.items) {
+                const item = section.items.find(i => i.id === id);
+                if (item)
+                    return { section, item };
+            }
+        }
+        return null;
+    }
+    deleteItemById(id) {
+        const config = this.readConfig();
+        if (!config || !config.sections)
+            return false;
+        let found = false;
+        for (const section of config.sections) {
+            if (section.items) {
+                const initialLength = section.items.length;
+                section.items = section.items.filter(i => i.id !== id);
+                if (section.items.length < initialLength) {
+                    found = true;
+                    break;
+                }
+            }
+        }
+        if (!found)
+            return false;
+        return this.writeConfig(config);
+    }
     addSection(name, icon) {
         const config = this.readConfig();
         if (!config)
@@ -120,6 +170,9 @@ class YamlAdmin {
         const config = this.readConfig();
         if (!config || !config.sections)
             return false;
+        if (oldName !== newName && config.sections.some(s => s.name === newName)) {
+            return false; // Cannot rename to an existing section name
+        }
         const section = config.sections.find(s => s.name === oldName);
         if (!section)
             return false;

@@ -1,6 +1,14 @@
+tg-admin-bot/node_modules/
+tg-admin-bot/dist/
 tg-admin-bot/.env
 history/Fixing PHP Dashboard Implementation.md
 conf.yml
-tg-admin-bot/node_modules/
+
 conf.yml~
 
+prompt.txt
+INSTRUCTIONS.md
+history.txt
+.codex
+tofix.md
+.gitignore

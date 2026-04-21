@@ -1,11 +1,12 @@
 import { Scenes, Markup } from 'telegraf';
 import { yamlAdmin } from '../service/yamlAdmin';
+import { cleanupBotMessages } from '../utils/cleanup';
 
 // Basic URL validation
 const isValidUrl = (url: string) => {
   try {
-    new URL(url);
-    return true;
+    const u = new URL(url);
+    return u.protocol === 'http:' || u.protocol === 'https:';
   } catch (e) {
     return false;
   }
@@ -20,7 +21,10 @@ export const addItemScene = new Scenes.WizardScene(
       await ctx.reply('No sections exist. Create one by typing its name:');
       return ctx.wizard.next();
     }
-    const buttons = sections.map((s, idx) => Markup.button.callback(s.name, `select_section_${idx}`));
+    const buttons = sections.map((s) => {
+      const payload = `select_section_${s.name}`.substring(0, 64);
+      return Markup.button.callback(s.name, payload);
+    });
     await ctx.reply('Select a section or type a new section name:', Markup.inlineKeyboard(buttons, { columns: 2 }));
     return ctx.wizard.next();
   },
@@ -28,8 +32,8 @@ export const addItemScene = new Scenes.WizardScene(
     if (ctx.callbackQuery) {
       const data = ctx.callbackQuery.data;
       if (data.startsWith('select_section_')) {
-        const idx = parseInt(data.replace('select_section_', ''), 10);
-        ctx.wizard.state.sectionName = yamlAdmin.getSections()[idx]?.name || 'Unsorted';
+        const name = data.replace('select_section_', '');
+        ctx.wizard.state.sectionName = name || 'Unsorted';
         await ctx.answerCbQuery();
       }
     } else if (ctx.message && 'text' in ctx.message) {
@@ -42,27 +46,34 @@ export const addItemScene = new Scenes.WizardScene(
     return ctx.wizard.next();
   },
   async (ctx: any) => {
-    if (!ctx.message || !('text' in ctx.message)) return;
+    if (!ctx.message || !('text' in ctx.message)) {
+      await ctx.reply('Please send valid text for the title.');
+      return;
+    }
     ctx.wizard.state.item.title = ctx.message.text.trim();
     await ctx.reply('Got it. Send a DESCRIPTION (or send /skip to leave empty):');
     return ctx.wizard.next();
   },
   async (ctx: any) => {
-    if (ctx.message && 'text' in ctx.message) {
-      const text = ctx.message.text.trim();
-      if (text !== '/skip') {
-        ctx.wizard.state.item.description = text;
-      }
+    if (!ctx.message || !('text' in ctx.message)) {
+      await ctx.reply('Please send text or /skip to leave empty.');
+      return;
+    }
+    const text = ctx.message.text.trim();
+    if (text !== '/skip') {
+      ctx.wizard.state.item.description = text;
     }
     await ctx.reply('Send an ICON (e.g., si-github, mdi-server) or /skip:');
     return ctx.wizard.next();
   },
   async (ctx: any) => {
-    if (ctx.message && 'text' in ctx.message) {
-      const text = ctx.message.text.trim();
-      if (text !== '/skip') {
-        ctx.wizard.state.item.icon = text;
-      }
+    if (!ctx.message || !('text' in ctx.message)) {
+      await ctx.reply('Please send text or /skip to leave empty.');
+      return;
+    }
+    const text = ctx.message.text.trim();
+    if (text !== '/skip') {
+      ctx.wizard.state.item.icon = text;
     }
     await ctx.reply('Send the URL:');
     return ctx.wizard.next();
@@ -80,6 +91,7 @@ export const addItemScene = new Scenes.WizardScene(
     const { sectionName, item } = ctx.wizard.state;
     const success = yamlAdmin.addItem(sectionName, item);
     
+    await cleanupBotMessages(ctx);
     if (success) {
       await ctx.reply(`✅ Item "${item.title}" successfully added to section "${sectionName}".`);
     } else {
@@ -97,19 +109,25 @@ export const addSectionScene = new Scenes.WizardScene(
     return ctx.wizard.next();
   },
   async (ctx: any) => {
-    if (!ctx.message || !('text' in ctx.message)) return;
+    if (!ctx.message || !('text' in ctx.message)) {
+      await ctx.reply('Please send text for the section name.');
+      return;
+    }
     const name = ctx.message.text.trim();
     ctx.wizard.state.sectionName = name;
     await ctx.reply('Send an ICON (e.g., fas fa-folder) or /skip:');
     return ctx.wizard.next();
   },
   async (ctx: any) => {
-    let icon = undefined;
-    if (ctx.message && 'text' in ctx.message) {
-      const text = ctx.message.text.trim();
-      if (text !== '/skip') icon = text;
+    if (!ctx.message || !('text' in ctx.message)) {
+      await ctx.reply('Please send text or /skip to leave empty.');
+      return;
     }
+    let icon = undefined;
+    const text = ctx.message.text.trim();
+    if (text !== '/skip') icon = text;
     const success = yamlAdmin.addSection(ctx.wizard.state.sectionName, icon);
+    await cleanupBotMessages(ctx);
     if (success) {
       await ctx.reply(`✅ Section added successfully.`);
     } else {
@@ -132,6 +150,7 @@ export const editItemScene = new Scenes.WizardScene(
     });
     if (!buttons.length) {
       await ctx.reply('No items to edit.');
+      await cleanupBotMessages(ctx);
       return ctx.scene.leave();
     }
     await ctx.reply('Select an item to edit:', Markup.inlineKeyboard(buttons));
@@ -149,6 +168,7 @@ export const editItemScene = new Scenes.WizardScene(
       
       if (!sectionName || !title) {
         await ctx.answerCbQuery('Item not found.', { show_alert: true });
+        await cleanupBotMessages(ctx);
         return ctx.scene.leave();
       }
 
@@ -162,6 +182,10 @@ export const editItemScene = new Scenes.WizardScene(
       ]));
       return ctx.wizard.next();
     }
+    if (ctx.callbackQuery) {
+      await ctx.answerCbQuery();
+      return;
+    }
   },
   async (ctx: any) => {
     if (ctx.callbackQuery && ctx.callbackQuery.data.startsWith('prop_')) {
@@ -169,6 +193,10 @@ export const editItemScene = new Scenes.WizardScene(
       await ctx.answerCbQuery();
       await ctx.reply(`Send the new value for ${ctx.wizard.state.propToEdit.toUpperCase()}:`);
       return ctx.wizard.next();
+    }
+    if (ctx.callbackQuery) {
+      await ctx.answerCbQuery();
+      return;
     }
   },
   async (ctx: any) => {
@@ -179,6 +207,7 @@ export const editItemScene = new Scenes.WizardScene(
       updatedProps[propToEdit] = val;
       
       const success = yamlAdmin.editItem(sectionName, oldTitle, updatedProps);
+      await cleanupBotMessages(ctx);
       if (success) {
         await ctx.reply(`✅ Item updated successfully.`);
       } else {
@@ -195,6 +224,7 @@ export const manageSectionScene = new Scenes.WizardScene(
     const sections = yamlAdmin.getSections();
     if (!sections.length) {
       await ctx.reply('No sections found.');
+      await cleanupBotMessages(ctx);
       return ctx.scene.leave();
     }
     const buttons = sections.map((s, idx) => Markup.button.callback(s.name, `selsec_${idx}`));
@@ -244,6 +274,7 @@ export const manageSectionScene = new Scenes.WizardScene(
       const sec = sections.find(s => s.name === ctx.wizard.state.sectionName);
       if (!sec || !sec.items || sec.items.length === 0) {
         await ctx.reply('No items to move.');
+        await cleanupBotMessages(ctx);
         return ctx.scene.leave();
       }
       
@@ -261,6 +292,7 @@ export const manageSectionScene = new Scenes.WizardScene(
     if (mode === 'rename' && ctx.message && 'text' in ctx.message) {
       const newName = ctx.message.text.trim();
       const success = yamlAdmin.editSection(sectionName, newName);
+      await cleanupBotMessages(ctx);
       await ctx.reply(success ? `✅ Section renamed to "${newName}".` : '❌ Failed to rename.');
       return ctx.scene.leave();
     }
@@ -271,6 +303,7 @@ export const manageSectionScene = new Scenes.WizardScene(
       
       if (data === 'cancel') {
         await ctx.reply('Cancelled operation.');
+        await cleanupBotMessages(ctx);
         return ctx.scene.leave();
       }
       
@@ -278,20 +311,36 @@ export const manageSectionScene = new Scenes.WizardScene(
         const sec = yamlAdmin.getSection(sectionName);
         if (!sec) {
             await ctx.reply('❌ Section not found.');
+            await cleanupBotMessages(ctx);
             return ctx.scene.leave();
         }
 
         if (data === 'del_all') {
-           yamlAdmin.deleteSection(sectionName);
-           await ctx.reply(`✅ Destroyed "${sectionName}".`);
+           const success = yamlAdmin.deleteSection(sectionName);
+           await cleanupBotMessages(ctx);
+           if (success) {
+             await ctx.reply(`✅ Destroyed "${sectionName}".`);
+           } else {
+             await ctx.reply(`❌ Failed to destroy "${sectionName}".`);
+           }
            return ctx.scene.leave();
         } else if (data === 'del_keep_unsorted') {
            const items = sec.items || [];
+           let moveSuccess = true;
            if (items.length > 0) {
-             yamlAdmin.moveItems(items.map((i: any) => i.title), sectionName, 'Unsorted');
+             moveSuccess = yamlAdmin.moveItems(items.map((i: any) => i.title), sectionName, 'Unsorted');
            }
-           yamlAdmin.deleteSection(sectionName);
-           await ctx.reply(`✅ Deleted "${sectionName}", protected items safely moved to Unsorted.`);
+           await cleanupBotMessages(ctx);
+           if (!moveSuccess && items.length > 0) {
+             await ctx.reply(`❌ Failed to move items, aborting deletion of "${sectionName}".`);
+           } else {
+             const delSuccess = yamlAdmin.deleteSection(sectionName);
+             if (delSuccess) {
+               await ctx.reply(`✅ Deleted "${sectionName}", protected items safely moved to Unsorted.`);
+             } else {
+               await ctx.reply(`❌ Failed to delete "${sectionName}".`);
+             }
+           }
            return ctx.scene.leave();
         }
       }
@@ -317,10 +366,16 @@ export const manageSectionScene = new Scenes.WizardScene(
            const sec = yamlAdmin.getSection(sectionName);
            if (!sec || !sec.items) {
              await ctx.reply('❌ Error tracking items.'); 
+             await cleanupBotMessages(ctx);
              return ctx.scene.leave();
            }
-           yamlAdmin.moveItems(sec.items.map((i: any)=>i.title), sectionName, destSection);
-           await ctx.reply(`✅ Moved all items seamlessly to "${destSection}".`);
+           const success = yamlAdmin.moveItems(sec.items.map((i: any)=>i.title), sectionName, destSection);
+           await cleanupBotMessages(ctx);
+           if (success) {
+             await ctx.reply(`✅ Moved all items seamlessly to "${destSection}".`);
+           } else {
+             await ctx.reply(`❌ Failed to move items to "${destSection}".`);
+           }
            return ctx.scene.leave();
         }
       }
@@ -341,6 +396,7 @@ export const moveItemScene = new Scenes.WizardScene(
     });
     if (!buttons.length) {
       await ctx.reply('No items found to move.');
+      await cleanupBotMessages(ctx);
       return ctx.scene.leave();
     }
     await ctx.reply('Select an item to move:', Markup.inlineKeyboard(buttons));
@@ -358,6 +414,7 @@ export const moveItemScene = new Scenes.WizardScene(
       
       if (!sectionName || !title) {
         await ctx.answerCbQuery('Item not found.', { show_alert: true });
+        await cleanupBotMessages(ctx);
         return ctx.scene.leave();
       }
       
@@ -389,6 +446,7 @@ export const moveItemScene = new Scenes.WizardScene(
       await ctx.answerCbQuery();
       
       const success = yamlAdmin.moveItems([itemTitle], sectionName, destSection);
+      await cleanupBotMessages(ctx);
       if (success) {
         await ctx.reply(`✅ Item "${itemTitle}" successfully moved to "${destSection}".`);
       } else {

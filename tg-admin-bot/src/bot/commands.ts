@@ -1,5 +1,8 @@
 import { Telegraf, Markup } from 'telegraf';
 import { yamlAdmin } from '../service/yamlAdmin';
+import { cleanupBotMessages } from '../utils/cleanup';
+
+const escapeMd = (text: string) => text.replace(/[_*\[\]`]/g, '\\$&');
 
 export const registerCommands = (bot: Telegraf<any>) => {
   bot.command('start', (ctx) => {
@@ -23,30 +26,32 @@ export const registerCommands = (bot: Telegraf<any>) => {
     );
   });
 
-  bot.command('sections', (ctx) => {
+  bot.command('sections', async (ctx) => {
     const sections = yamlAdmin.getSections();
     if (!sections.length) return ctx.reply('No sections found.');
-    let msg = '📂 **Sections**\n\n';
-    sections.forEach(s => msg += `- ${s.name} (${s.items?.length || 0} items)\n`);
+    let msg = '📂 *Sections*\n\n';
+    sections.forEach(s => msg += `- ${escapeMd(s.name)} (${s.items?.length || 0} items)\n`);
     const keyboard = Markup.inlineKeyboard([
       [Markup.button.callback('➕ Add Section', 'action_add_section'), Markup.button.callback('🔧 Manage', 'action_manage_sections')]
     ]);
+    await cleanupBotMessages(ctx);
     ctx.reply(msg, { parse_mode: 'Markdown', ...keyboard });
   });
 
-  bot.command('items', (ctx) => {
+  bot.command('items', async (ctx) => {
     const sections = yamlAdmin.getSections();
     if (!sections.length) return ctx.reply('No items found.');
-    let msg = '📦 **Items**\n\n';
+    let msg = '📦 *Items*\n\n';
     sections.forEach(s => {
-      msg += `*${s.name}*\n`;
-      s.items?.forEach(i => msg += ` - ${i.title}\n`);
+      msg += `*${escapeMd(s.name)}*\n`;
+      s.items?.forEach(i => msg += ` - ${escapeMd(i.title)}\n`);
       msg += '\n';
     });
     const keyboard = Markup.inlineKeyboard([
       [Markup.button.callback('➕ Add Item', 'action_add_item'), Markup.button.callback('✏️ Edit Item', 'action_edit_item')],
       [Markup.button.callback('➡️ Move Item', 'action_move_item'), Markup.button.callback('🗑️ Delete Item', 'action_delete_item')]
     ]);
+    await cleanupBotMessages(ctx);
     ctx.reply(msg, { parse_mode: 'Markdown', ...keyboard });
   });
 
@@ -73,20 +78,20 @@ export const registerCommands = (bot: Telegraf<any>) => {
     ctx.scene.enter('MANAGE_SECTION_SCENE');
   });
 
-  bot.command('delete', (ctx) => {
+  bot.command('delete', async (ctx) => {
     const sections = yamlAdmin.getSections();
     if (!sections.length) return ctx.reply('No sections/items found.');
 
     const buttons: any[] = [];
-    sections.forEach((s, sIndex) => {
-      s.items?.forEach((i, iIndex) => {
-        const cbData = `del_${sIndex}_${iIndex}`;
+    sections.forEach((s) => {
+      s.items?.forEach((i) => {
+        const cbData = `del_${i.id}`;
         buttons.push([Markup.button.callback(`🗑️ ${i.title} (${s.name})`, cbData)]);
       });
     });
 
     if (buttons.length === 0) return ctx.reply('No items to delete.');
-
+    await cleanupBotMessages(ctx);
     ctx.reply('Select an item to delete:', Markup.inlineKeyboard(buttons));
   });
 
@@ -122,21 +127,42 @@ export const registerCommands = (bot: Telegraf<any>) => {
 
     try {
       const response = await fetch(url, { signal: AbortSignal.timeout(5000) });
-      const html = await response.text();
-      const match = html.match(/<title[^>]*>([^<]+)<\/title>/i);
-      if (match && match[1]) {
-        title = match[1].trim()
-          .replace(/&amp;/g, '&')
-          .replace(/&lt;/g, '<')
-          .replace(/&gt;/g, '>')
-          .replace(/&#39;/g, "'")
-          .replace(/&quot;/g, '"')
-          .replace(/[\r\n\t]+/g, ' ')
-          .replace(/\s+/g, ' ')
-          .replace(/[\x00-\x1F\x7F]/g, ''); // strip control characters
+      const contentType = response.headers.get('content-type') || '';
+      
+      if (contentType.toLowerCase().includes('text/html') && response.body) {
+        const reader = response.body.getReader();
+        let bytesRead = 0;
+        let chunks = [];
+        const MAX_BYTES = 64 * 1024; // 64KB
+        
+        while (bytesRead < MAX_BYTES) {
+          const { done, value } = await reader.read();
+          if (done || !value) break;
+          chunks.push(value);
+          bytesRead += value.length;
+        }
+        reader.cancel().catch(() => {});
+        
+        const html = Buffer.concat(chunks).toString('utf-8');
+        const match = html.match(/<title[^>]*>([^<]+)<\/title>/i);
+        
+        if (match && match[1]) {
+          title = match[1].trim()
+            .replace(/&amp;/g, '&')
+            .replace(/&lt;/g, '<')
+            .replace(/&gt;/g, '>')
+            .replace(/&#39;/g, "'")
+            .replace(/&quot;/g, '"')
+            .replace(/[\r\n\t]+/g, ' ')
+            .replace(/\s+/g, ' ')
+            .replace(/[\x00-\x1F\x7F]/g, '');
 
-        if (title.length > 50) {
-          title = title.substring(0, 47) + '...';
+          if (title.length > 50) {
+            title = title.substring(0, 47) + '...';
+          }
+        } else {
+          const u = new URL(url);
+          title = (u.hostname + (u.pathname === '/' ? '' : u.pathname)).substring(0, 30);
         }
       } else {
         const u = new URL(url);

@@ -1,6 +1,7 @@
 import fs from 'fs';
 import path from 'path';
 import YAML from 'yaml';
+import crypto from 'crypto';
 import { env } from '../config';
 import { logger } from '../utils/logger';
 
@@ -12,6 +13,7 @@ export interface DashySubItem {
 }
 
 export interface DashyItem {
+  id?: string;
   title: string;
   description?: string;
   icon?: string;
@@ -79,7 +81,23 @@ export class YamlAdmin {
 
   public getSections(): DashySection[] {
     const config = this.readConfig();
-    return config?.sections || [];
+    if (!config) return [];
+    
+    let modified = false;
+    config.sections?.forEach(s => {
+      s.items?.forEach(i => {
+        if (!i.id) {
+          i.id = crypto.randomBytes(4).toString('hex');
+          modified = true;
+        }
+      });
+    });
+    
+    if (modified) {
+      this.writeConfig(config);
+    }
+    
+    return config.sections || [];
   }
 
   public getSection(sectionName: string): DashySection | undefined {
@@ -103,6 +121,10 @@ export class YamlAdmin {
 
     if (!section.items) {
       section.items = [];
+    }
+
+    if (!item.id) {
+      item.id = crypto.randomBytes(4).toString('hex');
     }
 
     section.items.push(item);
@@ -138,6 +160,39 @@ export class YamlAdmin {
     return this.writeConfig(config);
   }
 
+  public getItemById(id: string): { section: DashySection, item: DashyItem } | null {
+    const config = this.readConfig();
+    if (!config || !config.sections) return null;
+
+    for (const section of config.sections) {
+      if (section.items) {
+        const item = section.items.find(i => i.id === id);
+        if (item) return { section, item };
+      }
+    }
+    return null;
+  }
+
+  public deleteItemById(id: string): boolean {
+    const config = this.readConfig();
+    if (!config || !config.sections) return false;
+
+    let found = false;
+    for (const section of config.sections) {
+      if (section.items) {
+        const initialLength = section.items.length;
+        section.items = section.items.filter(i => i.id !== id);
+        if (section.items.length < initialLength) {
+          found = true;
+          break;
+        }
+      }
+    }
+
+    if (!found) return false;
+    return this.writeConfig(config);
+  }
+
   public addSection(name: string, icon?: string): boolean {
     const config = this.readConfig();
     if (!config) return false;
@@ -154,6 +209,10 @@ export class YamlAdmin {
 
     const config = this.readConfig();
     if (!config || !config.sections) return false;
+
+    if (oldName !== newName && config.sections.some(s => s.name === newName)) {
+      return false; // Cannot rename to an existing section name
+    }
 
     const section = config.sections.find(s => s.name === oldName);
     if (!section) return false;
