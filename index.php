@@ -1,4 +1,5 @@
 <?php
+define('APP_VERSION', '0.0.8');
 // Function to safely parse YAML using Python (avoids dependency on php-yaml extension)
 function parse_yaml_file($file) {
     if (!file_exists($file)) return null;
@@ -49,8 +50,25 @@ function getLinkAttributes($target) {
 function sanitizeUrl($url) {
     $url = trim((string)$url);
     if (preg_match('/^\[(.*?)\]\((.*?)\)$/', $url, $matches)) {
-        return $matches[2];
+        $url = $matches[2];
     }
+    
+    $url = trim($url);
+    $url = preg_replace('/[\x00-\x1F\x7F]/', '', $url);
+    
+    $parsed = parse_url($url);
+    if ($parsed && !empty($parsed['scheme'])) {
+        $scheme = strtolower($parsed['scheme']);
+        if (!in_array($scheme, ['http', 'https', 'mailto'])) {
+            return '';
+        }
+    } else {
+        $lowerUrl = strtolower($url);
+        if (strpos($lowerUrl, 'javascript:') === 0 || strpos($lowerUrl, 'data:') === 0 || strpos($lowerUrl, 'vbscript:') === 0) {
+            return '';
+        }
+    }
+    
     return $url;
 }
 
@@ -77,8 +95,12 @@ function renderIcon($iconStr) {
     global $specialIconMap;
     $iconStr = strtolower(trim((string)$iconStr));
     
+    if (!preg_match('/^(si-|mdi-|hl-|fas |fab |far |fa |)[a-z0-9\-_]+$/', $iconStr)) {
+        $iconStr = '';
+    }
+    
     // Clean up prefix for checking special map
-    $name = preg_replace('/^(si-|hl-|fas |fab |far |mdi-)/', '', $iconStr);
+    $name = preg_replace('/^(si-|hl-|fas |fab |far |fa |mdi-)/', '', $iconStr);
     $name = str_replace([' ', '-', '_'], '', $name);
     
     // Pick a gradient based on the name hash if not special
@@ -86,16 +108,17 @@ function renderIcon($iconStr) {
     $gradientClass = $gradients[abs(crc32($name)) % count($gradients)];
     $iconContent = '';
 
-    if (isset($specialIconMap[$name])) {
+    if ($name !== '' && isset($specialIconMap[$name])) {
         $gradientClass = $specialIconMap[$name]['grad'];
         $iconContent = $specialIconMap[$name]['svg'];
     } elseif (strpos($iconStr, 'si-') === 0) {
         // Simple Icons fallback via CDN
-        $siName = substr($iconStr, 3);
+        $siName = htmlspecialchars(substr($iconStr, 3), ENT_QUOTES, 'UTF-8');
         $iconContent = "<img src=\"https://cdn.jsdelivr.net/npm/simple-icons@v13/icons/{$siName}.svg\" style=\"width: 28px; height: 28px; filter: brightness(0) invert(1);\" loading=\"lazy\" alt=\"{$siName} icon\">";
     } elseif (strpos($iconStr, 'fa') === 0) {
         // Font Awesome fallback
-        $iconContent = "<i class=\"{$iconStr}\" style=\"font-size: 24px;\"></i>";
+        $escapedFa = htmlspecialchars($iconStr, ENT_QUOTES, 'UTF-8');
+        $iconContent = "<i class=\"{$escapedFa}\" style=\"font-size: 24px;\"></i>";
     } elseif (strpos($iconStr, 'mdi-') === 0) {
         // Material Design Icons generic fallback
         $iconContent = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 2 7 12 12 22 7 12 2"></polygon><polyline points="2 17 12 22 22 17"></polyline><polyline points="2 12 12 17 22 12"></polyline></svg>';
@@ -377,6 +400,7 @@ $sections = $config['sections'] ?? [];
         <?php if (!empty($pageInfo['footerText'])): ?>
             <footer style="text-align: center; margin-top: 4rem; color: var(--secondary); font-size: 0.9rem;">
                 <?php echo htmlspecialchars($pageInfo['footerText']); ?>
+                <div style="margin-top: 0.5rem; opacity: 0.5; font-size: 0.8rem;">v<?php echo APP_VERSION; ?></div>
             </footer>
         <?php endif; ?>
     </div>

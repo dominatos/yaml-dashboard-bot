@@ -1,4 +1,5 @@
 # Telegram Dashy Admin Bot 🤖
+![Version](https://img.shields.io/badge/version-0.0.8-blue)
 
 A lightweight, secure, and fully Dockerized Telegram bot, powered by the [Telegraf](https://telegraf.js.org/) framework, designed to manage your self-hosted Dashy-style dashboard configuration (`conf.yml`). 
 
@@ -164,19 +165,22 @@ npm run dev
 
 Interact with your active Telegram bot using these standard commands:
 
-* `/start` - Displays a welcome message and a persistent custom reply keyboard layout.
+* `/start` - Displays a welcome message and removes any persistent custom reply keyboards.
 * `/help` - Prints administrative command guidelines.
-* `/sections` - Lists all currently configured Sections inside your `conf.yml`.
-* `/items` - Prints an expanded hierarchy list of every item available across every section.
+* `/sections` - Lists all currently configured Sections with an inline keyboard to Add or Manage sections.
+* `/items` - Prints an expanded hierarchy list of every item with an inline keyboard to Add, Edit, Move, or Delete items.
 * `/add` - Mounts the **Addition Wizard Scene**. The bot will conversationally prompt you for:
   1. Section Name (or creation of a new one)
   2. Item Title
   3. Item Description (Optional via `/skip`)
   4. Dashy/Premium String Icon Reference (Optional via `/skip`)
   5. URL Constraints (Must pass URL parsing evaluation)
+* `/edit` - Mounts the **Edit Item Scene** to modify an existing item.
+* `/add_section` - Mounts the **Add Section Scene** to create a new section.
+* `/manage_sections` - Mounts the **Manage Section Scene** to rename, move items, or delete sections.
 * `[Raw HTTP/HTTPS Link]` - If you message the bot a standalone URL, it bypasses the wizard and automatically extracts the `<title>` element (or defaults to the URL path). It instantly injects the new link into a category titled **"Unsorted"**.
 * `/delete` - Queries all items, binding them to an inline callback-keyboard. Selecting an item instantly wipes it from the `conf.yml`.
-* `/cancel` - Kills your active wizard workflow securely (specifically required if you get trapped inside `/add` prompts and want to back out).
+* `/cancel` - Kills your active wizard workflow securely (specifically required if you get trapped inside prompts and want to back out).
 
 ---
 
