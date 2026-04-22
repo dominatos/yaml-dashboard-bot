@@ -3,7 +3,7 @@ import { version } from '../package.json';
 import { env } from './config';
 import { logger } from './utils/logger';
 import { authMiddleware } from './bot/middleware';
-import { registerCommands } from './bot/commands';
+import { registerCommands, sendMainMenu } from './bot/commands';
 import { registerActions } from './bot/actions';
 import { stage } from './bot/scenes';
 import { cleanupBotMessages } from './utils/cleanup';
@@ -78,7 +78,7 @@ bot.use(async (ctx, next) => {
     if (session.__scenes) delete session.__scenes;
     if (session.__pendingAction) delete session.__pendingAction;
     if (session.__pendingCommand) delete session.__pendingCommand;
-    await ctx.reply('Any active operation has been cancelled.');
+    await sendMainMenu(ctx, 'Any active operation has been cancelled.');
     return;
   }
 
@@ -98,7 +98,7 @@ bot.use(async (ctx, next) => {
         delete session.__pendingAction;
         delete session.__pendingCommand;
         await ctx.answerCbQuery();
-        await ctx.reply('Previous operation cancelled.');
+        await sendMainMenu(ctx, 'Previous operation cancelled.');
         return;
       }
       await ctx.answerCbQuery();
@@ -190,7 +190,7 @@ bot.use(async (ctx, next) => {
 
     const sceneName = ACTION_TO_SCENE[pendingAction];
     if (sceneName) {
-      await ctx.reply('Previous operation cancelled.');
+      await sendMainMenu(ctx, 'Previous operation cancelled.');
       await (ctx as any).scene.enter(sceneName);
       return;
     }
@@ -198,7 +198,7 @@ bot.use(async (ctx, next) => {
     // action_delete_item is not a scene — re-trigger the delete-item list
     if (pendingAction === 'action_delete_item') {
       const { yamlAdmin } = await import('./service/yamlAdmin');
-      await ctx.reply('Previous operation cancelled.');
+      await sendMainMenu(ctx, 'Previous operation cancelled.');
       const sections = yamlAdmin.getSections();
       const buttons: any[] = [];
       sections.forEach((s) => {
@@ -217,7 +217,7 @@ bot.use(async (ctx, next) => {
 
   // --- Handle non-scene commands (/items, /sections, /help, /start) ---
   if (pendingCommand) {
-    await ctx.reply('Previous operation cancelled. Please re-send your command:');
+    await sendMainMenu(ctx, 'Previous operation cancelled. Please choose your next action or re-send your command:');
     await ctx.reply(`Tip: type ${pendingCommand} again.`);
     return;
   }

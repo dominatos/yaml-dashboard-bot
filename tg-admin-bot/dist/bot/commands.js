@@ -1,16 +1,20 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.registerCommands = exports.sendItemsList = exports.sendSectionsList = void 0;
+exports.registerCommands = exports.sendItemsList = exports.sendSectionsList = exports.sendMainMenu = exports.mainMenuKeyboard = void 0;
 const telegraf_1 = require("telegraf");
 const yamlAdmin_1 = require("../service/yamlAdmin");
 const cleanup_1 = require("../utils/cleanup");
 const escapeMd = (text) => text.replace(/[_*\[\]`]/g, '\\$&');
-const mainMenuKeyboard = telegraf_1.Markup.inlineKeyboard([
+exports.mainMenuKeyboard = telegraf_1.Markup.inlineKeyboard([
     [telegraf_1.Markup.button.callback('📂 Sections', 'action_list_sections'), telegraf_1.Markup.button.callback('📦 Items', 'action_list_items')],
     [telegraf_1.Markup.button.callback('➕ Add Item', 'action_add_item'), telegraf_1.Markup.button.callback('➕ Add Section', 'action_add_section')],
     [telegraf_1.Markup.button.callback('🔗 NavLinks', 'action_manage_navlinks'), telegraf_1.Markup.button.callback('🧩 Sub-Links', 'action_manage_sublinks')],
     [telegraf_1.Markup.button.callback('🔧 Manage Sections', 'action_manage_sections')]
 ]);
+const sendMainMenu = async (ctx, message = 'Choose your next action:') => {
+    return ctx.reply(message, exports.mainMenuKeyboard);
+};
+exports.sendMainMenu = sendMainMenu;
 const sendSectionsList = async (ctx) => {
     const sections = yamlAdmin_1.yamlAdmin.getSections();
     if (!sections.length)
@@ -48,7 +52,7 @@ const sendItemsList = async (ctx) => {
 exports.sendItemsList = sendItemsList;
 const registerCommands = (bot) => {
     bot.command('start', (ctx) => {
-        ctx.reply('👋 Welcome to the Dashy Admin Bot!\n\nUse the buttons below or /help to see all available commands.', mainMenuKeyboard);
+        (0, exports.sendMainMenu)(ctx, '👋 Welcome to the Dashy Admin Bot!\n\nUse the buttons below or /help to see all available commands.');
     });
     bot.command('help', (ctx) => {
         ctx.reply('🛠️ **Admin Commands**\n' +
@@ -61,7 +65,7 @@ const registerCommands = (bot) => {
             '/manage_sections - Rename, Move items, or Delete Sections\n' +
             '/navlinks - Manage top-level navigation links\n' +
             '/sublinks - Manage sub-links within an item\n' +
-            '/cancel - Cancel any current operation', mainMenuKeyboard);
+            '/cancel - Cancel any current operation', exports.mainMenuKeyboard);
     });
     bot.command('sections', async (ctx) => {
         await (0, exports.sendSectionsList)(ctx);
@@ -73,7 +77,7 @@ const registerCommands = (bot) => {
         if (ctx.scene) {
             await ctx.scene.leave();
         }
-        ctx.reply('Any active operation has been cancelled.');
+        await (0, exports.sendMainMenu)(ctx, 'Any active operation has been cancelled.');
     });
     bot.command('add', (ctx) => {
         ctx.scene.enter('ADD_ITEM_SCENE');
@@ -187,10 +191,10 @@ const registerCommands = (bot) => {
         };
         const success = yamlAdmin_1.yamlAdmin.addItem(sectionName, item);
         if (success) {
-            await ctx.reply(`✅ Added "${title}" to "${sectionName}".`);
+            await (0, exports.sendMainMenu)(ctx, `✅ Added "${title}" to "${sectionName}".`);
         }
         else {
-            await ctx.reply(`❌ Failed to automatically add link.`);
+            await (0, exports.sendMainMenu)(ctx, '❌ Failed to automatically add link.');
         }
     });
 };

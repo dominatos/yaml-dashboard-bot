@@ -3,12 +3,16 @@ import { yamlAdmin } from '../service/yamlAdmin';
 import { cleanupBotMessages } from '../utils/cleanup';
 
 const escapeMd = (text: string) => text.replace(/[_*\[\]`]/g, '\\$&');
-const mainMenuKeyboard = Markup.inlineKeyboard([
+export const mainMenuKeyboard = Markup.inlineKeyboard([
   [Markup.button.callback('📂 Sections', 'action_list_sections'), Markup.button.callback('📦 Items', 'action_list_items')],
   [Markup.button.callback('➕ Add Item', 'action_add_item'), Markup.button.callback('➕ Add Section', 'action_add_section')],
   [Markup.button.callback('🔗 NavLinks', 'action_manage_navlinks'), Markup.button.callback('🧩 Sub-Links', 'action_manage_sublinks')],
   [Markup.button.callback('🔧 Manage Sections', 'action_manage_sections')]
 ]);
+
+export const sendMainMenu = async (ctx: any, message = 'Choose your next action:') => {
+  return ctx.reply(message, mainMenuKeyboard);
+};
 
 export const sendSectionsList = async (ctx: any) => {
   const sections = yamlAdmin.getSections();
@@ -51,10 +55,7 @@ export const sendItemsList = async (ctx: any) => {
 
 export const registerCommands = (bot: Telegraf<any>) => {
   bot.command('start', (ctx) => {
-    ctx.reply(
-      '👋 Welcome to the Dashy Admin Bot!\n\nUse the buttons below or /help to see all available commands.',
-      mainMenuKeyboard
-    );
+    sendMainMenu(ctx, '👋 Welcome to the Dashy Admin Bot!\n\nUse the buttons below or /help to see all available commands.');
   });
 
   bot.command('help', (ctx) => {
@@ -86,7 +87,7 @@ export const registerCommands = (bot: Telegraf<any>) => {
     if (ctx.scene) {
       await ctx.scene.leave();
     }
-    ctx.reply('Any active operation has been cancelled.');
+    await sendMainMenu(ctx, 'Any active operation has been cancelled.');
   });
 
   bot.command('add', (ctx) => {
@@ -217,9 +218,9 @@ export const registerCommands = (bot: Telegraf<any>) => {
 
     const success = yamlAdmin.addItem(sectionName, item);
     if (success) {
-      await ctx.reply(`✅ Added "${title}" to "${sectionName}".`);
+      await sendMainMenu(ctx, `✅ Added "${title}" to "${sectionName}".`);
     } else {
-      await ctx.reply(`❌ Failed to automatically add link.`);
+      await sendMainMenu(ctx, '❌ Failed to automatically add link.');
     }
   });
 };

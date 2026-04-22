@@ -76,10 +76,12 @@ const registerActions = (bot) => {
             if (success) {
                 await ctx.answerCbQuery('Item deleted successfully!');
                 await ctx.editMessageText(`✅ Deleted "${item.title}" from "${section.name}"`);
+                await (0, commands_1.sendMainMenu)(ctx);
             }
             else {
                 await ctx.answerCbQuery('Failed to delete item.', { show_alert: true });
                 await ctx.editMessageText(`❌ Failed to delete "${item.title}". It may not exist.`);
+                await (0, commands_1.sendMainMenu)(ctx);
             }
         }
         catch (e) {

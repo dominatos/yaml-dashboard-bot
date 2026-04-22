@@ -109,7 +109,7 @@ bot.use(async (ctx, next) => {
             delete session.__pendingAction;
         if (session.__pendingCommand)
             delete session.__pendingCommand;
-        await ctx.reply('Any active operation has been cancelled.');
+        await (0, commands_1.sendMainMenu)(ctx, 'Any active operation has been cancelled.');
         return;
     }
     // --- Handle cancel confirmation/denial callbacks (always, even outside scene) ---
@@ -130,7 +130,7 @@ bot.use(async (ctx, next) => {
                 delete session.__pendingAction;
                 delete session.__pendingCommand;
                 await ctx.answerCbQuery();
-                await ctx.reply('Previous operation cancelled.');
+                await (0, commands_1.sendMainMenu)(ctx, 'Previous operation cancelled.');
                 return;
             }
             await ctx.answerCbQuery();
@@ -210,14 +210,14 @@ bot.use(async (ctx, next) => {
         };
         const sceneName = ACTION_TO_SCENE[pendingAction];
         if (sceneName) {
-            await ctx.reply('Previous operation cancelled.');
+            await (0, commands_1.sendMainMenu)(ctx, 'Previous operation cancelled.');
             await ctx.scene.enter(sceneName);
             return;
         }
         // action_delete_item is not a scene — re-trigger the delete-item list
         if (pendingAction === 'action_delete_item') {
             const { yamlAdmin } = await Promise.resolve().then(() => __importStar(require('./service/yamlAdmin')));
-            await ctx.reply('Previous operation cancelled.');
+            await (0, commands_1.sendMainMenu)(ctx, 'Previous operation cancelled.');
             const sections = yamlAdmin.getSections();
             const buttons = [];
             sections.forEach((s) => {
@@ -236,7 +236,7 @@ bot.use(async (ctx, next) => {
     }
     // --- Handle non-scene commands (/items, /sections, /help, /start) ---
     if (pendingCommand) {
-        await ctx.reply('Previous operation cancelled. Please re-send your command:');
+        await (0, commands_1.sendMainMenu)(ctx, 'Previous operation cancelled. Please choose your next action or re-send your command:');
         await ctx.reply(`Tip: type ${pendingCommand} again.`);
         return;
     }

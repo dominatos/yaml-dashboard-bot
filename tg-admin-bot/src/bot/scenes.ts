@@ -1,6 +1,7 @@
 import { Scenes, Markup } from 'telegraf';
 import { yamlAdmin, DashyNavLink } from '../service/yamlAdmin';
 import { cleanupBotMessages } from '../utils/cleanup';
+import { sendMainMenu } from './commands';
 
 // Basic URL validation
 const isValidUrl = (url: string) => {
@@ -10,6 +11,12 @@ const isValidUrl = (url: string) => {
   } catch (e) {
     return false;
   }
+};
+
+const finishScene = async (ctx: any, message: string) => {
+  await cleanupBotMessages(ctx);
+  await ctx.scene.leave();
+  return sendMainMenu(ctx, message);
 };
 
 export const addItemScene = new Scenes.WizardScene(
@@ -91,14 +98,12 @@ export const addItemScene = new Scenes.WizardScene(
     const { sectionName, item } = ctx.wizard.state;
     const success = yamlAdmin.addItem(sectionName, item);
     
-    await cleanupBotMessages(ctx);
-    if (success) {
-      await ctx.reply(`✅ Item "${item.title}" successfully added to section "${sectionName}".`);
-    } else {
-      await ctx.reply(`❌ Failed to add item. Check the logs.`);
-    }
-    
-    return ctx.scene.leave();
+    return finishScene(
+      ctx,
+      success
+        ? `✅ Item "${item.title}" successfully added to section "${sectionName}".`
+        : '❌ Failed to add item. Check the logs.'
+    );
   }
 );
 
@@ -127,13 +132,7 @@ export const addSectionScene = new Scenes.WizardScene(
     const text = ctx.message.text.trim();
     if (text !== '/skip') icon = text;
     const success = yamlAdmin.addSection(ctx.wizard.state.sectionName, icon);
-    await cleanupBotMessages(ctx);
-    if (success) {
-      await ctx.reply(`✅ Section added successfully.`);
-    } else {
-      await ctx.reply(`❌ Failed to add section.`);
-    }
-    return ctx.scene.leave();
+    return finishScene(ctx, success ? '✅ Section added successfully.' : '❌ Failed to add section.');
   }
 );
 
@@ -149,9 +148,7 @@ export const editItemScene = new Scenes.WizardScene(
       });
     });
     if (!buttons.length) {
-      await ctx.reply('No items to edit.');
-      await cleanupBotMessages(ctx);
-      return ctx.scene.leave();
+      return finishScene(ctx, 'No items to edit.');
     }
     await ctx.reply('Select an item to edit:', Markup.inlineKeyboard(buttons));
     return ctx.wizard.next();
@@ -207,13 +204,7 @@ export const editItemScene = new Scenes.WizardScene(
       updatedProps[propToEdit] = val;
       
       const success = yamlAdmin.editItem(sectionName, oldTitle, updatedProps);
-      await cleanupBotMessages(ctx);
-      if (success) {
-        await ctx.reply(`✅ Item updated successfully.`);
-      } else {
-        await ctx.reply(`❌ Failed to update item.`);
-      }
-      return ctx.scene.leave();
+      return finishScene(ctx, success ? '✅ Item updated successfully.' : '❌ Failed to update item.');
     }
   }
 );
@@ -223,9 +214,7 @@ export const manageSectionScene = new Scenes.WizardScene(
   async (ctx: any) => {
     const sections = yamlAdmin.getSections();
     if (!sections.length) {
-      await ctx.reply('No sections found.');
-      await cleanupBotMessages(ctx);
-      return ctx.scene.leave();
+      return finishScene(ctx, 'No sections found.');
     }
     const buttons = sections.map((s, idx) => Markup.button.callback(s.name, `selsec_${idx}`));
     await ctx.reply('Select a section to manage:', Markup.inlineKeyboard(buttons, { columns: 2 }));
@@ -273,9 +262,7 @@ export const manageSectionScene = new Scenes.WizardScene(
       const sections = yamlAdmin.getSections();
       const sec = sections.find(s => s.name === ctx.wizard.state.sectionName);
       if (!sec || !sec.items || sec.items.length === 0) {
-        await ctx.reply('No items to move.');
-        await cleanupBotMessages(ctx);
-        return ctx.scene.leave();
+        return finishScene(ctx, 'No items to move.');
       }
       
       // We will move all items for MVP. Let's just do Move All directly to make logic clean.
@@ -292,9 +279,7 @@ export const manageSectionScene = new Scenes.WizardScene(
     if (mode === 'rename' && ctx.message && 'text' in ctx.message) {
       const newName = ctx.message.text.trim();
       const success = yamlAdmin.editSection(sectionName, newName);
-      await cleanupBotMessages(ctx);
-      await ctx.reply(success ? `✅ Section renamed to "${newName}".` : '❌ Failed to rename.');
-      return ctx.scene.leave();
+      return finishScene(ctx, success ? `✅ Section renamed to "${newName}".` : '❌ Failed to rename.');
     }
     
     if (ctx.callbackQuery) {
@@ -302,46 +287,35 @@ export const manageSectionScene = new Scenes.WizardScene(
       await ctx.answerCbQuery();
       
       if (data === 'cancel') {
-        await ctx.reply('Cancelled operation.');
-        await cleanupBotMessages(ctx);
-        return ctx.scene.leave();
+        return finishScene(ctx, 'Cancelled operation.');
       }
       
       if (mode === 'delete') {
         const sec = yamlAdmin.getSection(sectionName);
         if (!sec) {
-            await ctx.reply('❌ Section not found.');
-            await cleanupBotMessages(ctx);
-            return ctx.scene.leave();
+            return finishScene(ctx, '❌ Section not found.');
         }
 
         if (data === 'del_all') {
            const success = yamlAdmin.deleteSection(sectionName);
-           await cleanupBotMessages(ctx);
-           if (success) {
-             await ctx.reply(`✅ Destroyed "${sectionName}".`);
-           } else {
-             await ctx.reply(`❌ Failed to destroy "${sectionName}".`);
-           }
-           return ctx.scene.leave();
+           return finishScene(ctx, success ? `✅ Destroyed "${sectionName}".` : `❌ Failed to destroy "${sectionName}".`);
         } else if (data === 'del_keep_unsorted') {
            const items = sec.items || [];
            let moveSuccess = true;
            if (items.length > 0) {
              moveSuccess = yamlAdmin.moveItems(items.map((i: any) => i.title), sectionName, 'Unsorted');
            }
-           await cleanupBotMessages(ctx);
            if (!moveSuccess && items.length > 0) {
-             await ctx.reply(`❌ Failed to move items, aborting deletion of "${sectionName}".`);
+             return finishScene(ctx, `❌ Failed to move items, aborting deletion of "${sectionName}".`);
            } else {
              const delSuccess = yamlAdmin.deleteSection(sectionName);
-             if (delSuccess) {
-               await ctx.reply(`✅ Deleted "${sectionName}", protected items safely moved to Unsorted.`);
-             } else {
-               await ctx.reply(`❌ Failed to delete "${sectionName}".`);
-             }
+             return finishScene(
+               ctx,
+               delSuccess
+                 ? `✅ Deleted "${sectionName}", protected items safely moved to Unsorted.`
+                 : `❌ Failed to delete "${sectionName}".`
+             );
            }
-           return ctx.scene.leave();
         }
       }
       
@@ -365,18 +339,15 @@ export const manageSectionScene = new Scenes.WizardScene(
            }
            const sec = yamlAdmin.getSection(sectionName);
            if (!sec || !sec.items) {
-             await ctx.reply('❌ Error tracking items.'); 
-             await cleanupBotMessages(ctx);
-             return ctx.scene.leave();
+             return finishScene(ctx, '❌ Error tracking items.');
            }
            const success = yamlAdmin.moveItems(sec.items.map((i: any)=>i.title), sectionName, destSection);
-           await cleanupBotMessages(ctx);
-           if (success) {
-             await ctx.reply(`✅ Moved all items seamlessly to "${destSection}".`);
-           } else {
-             await ctx.reply(`❌ Failed to move items to "${destSection}".`);
-           }
-           return ctx.scene.leave();
+           return finishScene(
+             ctx,
+             success
+               ? `✅ Moved all items seamlessly to "${destSection}".`
+               : `❌ Failed to move items to "${destSection}".`
+           );
         }
       }
     }
@@ -395,9 +366,7 @@ export const moveItemScene = new Scenes.WizardScene(
       });
     });
     if (!buttons.length) {
-      await ctx.reply('No items found to move.');
-      await cleanupBotMessages(ctx);
-      return ctx.scene.leave();
+      return finishScene(ctx, 'No items found to move.');
     }
     await ctx.reply('Select an item to move:', Markup.inlineKeyboard(buttons));
     return ctx.wizard.next();
@@ -414,8 +383,7 @@ export const moveItemScene = new Scenes.WizardScene(
       
       if (!sectionName || !title) {
         await ctx.answerCbQuery('Item not found.', { show_alert: true });
-        await cleanupBotMessages(ctx);
-        return ctx.scene.leave();
+        return finishScene(ctx, 'Item not found.');
       }
       
       ctx.wizard.state.sectionName = sectionName;
@@ -446,13 +414,12 @@ export const moveItemScene = new Scenes.WizardScene(
       await ctx.answerCbQuery();
       
       const success = yamlAdmin.moveItems([itemTitle], sectionName, destSection);
-      await cleanupBotMessages(ctx);
-      if (success) {
-        await ctx.reply(`✅ Item "${itemTitle}" successfully moved to "${destSection}".`);
-      } else {
-        await ctx.reply(`❌ Failed to move item.`);
-      }
-      return ctx.scene.leave();
+      return finishScene(
+        ctx,
+        success
+          ? `✅ Item "${itemTitle}" successfully moved to "${destSection}".`
+          : '❌ Failed to move item.'
+      );
     }
   }
 );
@@ -484,9 +451,7 @@ export const manageNavLinksScene = new Scenes.WizardScene(
     await ctx.answerCbQuery();
 
     if (action === 'nl_cancel') {
-      await cleanupBotMessages(ctx);
-      await ctx.reply('Cancelled.');
-      return ctx.scene.leave();
+      return finishScene(ctx, 'Cancelled.');
     }
     if (action === 'nl_add') {
       ctx.wizard.state.mode = 'add';
@@ -497,9 +462,7 @@ export const manageNavLinksScene = new Scenes.WizardScene(
       ctx.wizard.state.mode = 'delete';
       const navLinks = yamlAdmin.getNavLinks();
       if (navLinks.length === 0) {
-        await cleanupBotMessages(ctx);
-        await ctx.reply('No nav links to delete.');
-        return ctx.scene.leave();
+        return finishScene(ctx, 'No nav links to delete.');
       }
       const buttons = navLinks.map((n, idx) =>
         [Markup.button.callback(`🗑️ ${n.title}`, `nldel_${idx}`)]
@@ -518,26 +481,18 @@ export const manageNavLinksScene = new Scenes.WizardScene(
       const data = ctx.callbackQuery.data;
       await ctx.answerCbQuery();
       if (data === 'nl_cancel') {
-        await cleanupBotMessages(ctx);
-        await ctx.reply('Cancelled.');
-        return ctx.scene.leave();
+        return finishScene(ctx, 'Cancelled.');
       }
       if (data.startsWith('nldel_')) {
         const idx = Number(data.replace('nldel_', ''));
         const navLinks = yamlAdmin.getNavLinks();
         const navLink = navLinks[idx];
         if (!navLink) {
-          await cleanupBotMessages(ctx);
-          await ctx.reply('❌ Nav link not found.');
-          return ctx.scene.leave();
+          return finishScene(ctx, '❌ Nav link not found.');
         }
         const title = navLink.title;
         const success = yamlAdmin.deleteNavLink(title);
-        await cleanupBotMessages(ctx);
-        await ctx.reply(success
-          ? `✅ NavLink "${title}" deleted.`
-          : `❌ Failed to delete "${title}".`);
-        return ctx.scene.leave();
+        return finishScene(ctx, success ? `✅ NavLink "${title}" deleted.` : `❌ Failed to delete "${title}".`);
       }
       return;
     }
@@ -571,11 +526,12 @@ export const manageNavLinksScene = new Scenes.WizardScene(
       target: 'newtab'
     };
     const success = yamlAdmin.addNavLink(navLink);
-    await cleanupBotMessages(ctx);
-    await ctx.reply(success
-      ? `✅ NavLink "${navLink.title}" added.`
-      : `❌ Failed to add NavLink — a link with that title may already exist.`);
-    return ctx.scene.leave();
+    return finishScene(
+      ctx,
+      success
+        ? `✅ NavLink "${navLink.title}" added.`
+        : '❌ Failed to add NavLink — a link with that title may already exist.'
+    );
   }
 );
 
@@ -593,9 +549,7 @@ export const manageSubItemsScene = new Scenes.WizardScene(
       });
     });
     if (!buttons.length) {
-      await cleanupBotMessages(ctx);
-      await ctx.reply('No items found.');
-      return ctx.scene.leave();
+      return finishScene(ctx, 'No items found.');
     }
     await ctx.reply('Select an item to manage sub-links for:', Markup.inlineKeyboard(buttons));
     return ctx.wizard.next();
@@ -608,9 +562,7 @@ export const manageSubItemsScene = new Scenes.WizardScene(
 
     const result = yamlAdmin.getItemById(itemId);
     if (!result) {
-      await cleanupBotMessages(ctx);
-      await ctx.reply('❌ Item not found.');
-      return ctx.scene.leave();
+      return finishScene(ctx, '❌ Item not found.');
     }
 
     ctx.wizard.state.itemId = itemId;
@@ -642,9 +594,7 @@ export const manageSubItemsScene = new Scenes.WizardScene(
     await ctx.answerCbQuery();
 
     if (action === 'sl_cancel') {
-      await cleanupBotMessages(ctx);
-      await ctx.reply('Cancelled.');
-      return ctx.scene.leave();
+      return finishScene(ctx, 'Cancelled.');
     }
     if (action === 'sl_add') {
       ctx.wizard.state.mode = 'add';
@@ -655,9 +605,7 @@ export const manageSubItemsScene = new Scenes.WizardScene(
       ctx.wizard.state.mode = 'delete';
       const subItems = yamlAdmin.getSubItems(ctx.wizard.state.itemId);
       if (subItems.length === 0) {
-        await cleanupBotMessages(ctx);
-        await ctx.reply('No sub-links to remove.');
-        return ctx.scene.leave();
+        return finishScene(ctx, 'No sub-links to remove.');
       }
       const buttons = subItems.map((s, i) =>
         [Markup.button.callback(`🗑️ ${s.title}`, `sldel_${i}`)]
@@ -676,26 +624,23 @@ export const manageSubItemsScene = new Scenes.WizardScene(
       const data = ctx.callbackQuery.data;
       await ctx.answerCbQuery();
       if (data === 'sl_cancel') {
-        await cleanupBotMessages(ctx);
-        await ctx.reply('Cancelled.');
-        return ctx.scene.leave();
+        return finishScene(ctx, 'Cancelled.');
       }
       if (data.startsWith('sldel_')) {
         const idx = Number(data.replace('sldel_', ''));
         const subItems = yamlAdmin.getSubItems(itemId);
         const subItem = subItems[idx];
         if (!subItem) {
-          await cleanupBotMessages(ctx);
-          await ctx.reply('❌ Sub-link not found.');
-          return ctx.scene.leave();
+          return finishScene(ctx, '❌ Sub-link not found.');
         }
         const subTitle = subItem.title;
         const success = yamlAdmin.deleteSubItem(itemId, subTitle);
-        await cleanupBotMessages(ctx);
-        await ctx.reply(success
-          ? `✅ Sub-link "${subTitle}" removed from "${itemTitle}".`
-          : `❌ Failed to remove "${subTitle}".`);
-        return ctx.scene.leave();
+        return finishScene(
+          ctx,
+          success
+            ? `✅ Sub-link "${subTitle}" removed from "${itemTitle}".`
+            : `❌ Failed to remove "${subTitle}".`
+        );
       }
       return;
     }
@@ -725,11 +670,12 @@ export const manageSubItemsScene = new Scenes.WizardScene(
     }
     const { itemId, itemTitle, subItemTitle } = ctx.wizard.state;
     const success = yamlAdmin.addSubItem(itemId, { title: subItemTitle, url });
-    await cleanupBotMessages(ctx);
-    await ctx.reply(success
-      ? `✅ Sub-link "${subItemTitle}" added to "${itemTitle}".`
-      : `❌ Failed to add sub-link — a sub-link with that title may already exist.`);
-    return ctx.scene.leave();
+    return finishScene(
+      ctx,
+      success
+        ? `✅ Sub-link "${subItemTitle}" added to "${itemTitle}".`
+        : '❌ Failed to add sub-link — a sub-link with that title may already exist.'
+    );
   }
 );
 

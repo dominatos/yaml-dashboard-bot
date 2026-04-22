@@ -2,7 +2,7 @@ import { Telegraf, Markup } from 'telegraf';
 import { yamlAdmin } from '../service/yamlAdmin';
 import { logger } from '../utils/logger';
 import { cleanupBotMessages } from '../utils/cleanup';
-import { sendItemsList, sendSectionsList } from './commands';
+import { sendItemsList, sendMainMenu, sendSectionsList } from './commands';
 
 export const registerActions = (bot: Telegraf<any>) => {
   bot.action('action_list_sections', async (ctx) => {
@@ -86,9 +86,11 @@ export const registerActions = (bot: Telegraf<any>) => {
       if (success) {
         await ctx.answerCbQuery('Item deleted successfully!');
         await ctx.editMessageText(`✅ Deleted "${item.title}" from "${section.name}"`);
+        await sendMainMenu(ctx);
       } else {
         await ctx.answerCbQuery('Failed to delete item.', { show_alert: true });
         await ctx.editMessageText(`❌ Failed to delete "${item.title}". It may not exist.`);
+        await sendMainMenu(ctx);
       }
     } catch (e) {
       logger.error({ err: e }, 'Error in delete action');
