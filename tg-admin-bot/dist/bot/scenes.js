@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.stage = exports.moveItemScene = exports.manageSectionScene = exports.editItemScene = exports.addSectionScene = exports.addItemScene = void 0;
+exports.stage = exports.manageSubItemsScene = exports.manageNavLinksScene = exports.moveItemScene = exports.manageSectionScene = exports.editItemScene = exports.addSectionScene = exports.addItemScene = void 0;
 const telegraf_1 = require("telegraf");
 const yamlAdmin_1 = require("../service/yamlAdmin");
 const cleanup_1 = require("../utils/cleanup");
@@ -420,5 +420,267 @@ exports.moveItemScene = new telegraf_1.Scenes.WizardScene('MOVE_ITEM_SCENE', asy
         return ctx.scene.leave();
     }
 });
-exports.stage = new telegraf_1.Scenes.Stage([exports.addItemScene, exports.addSectionScene, exports.editItemScene, exports.manageSectionScene, exports.moveItemScene]);
+exports.manageNavLinksScene = new telegraf_1.Scenes.WizardScene('MANAGE_NAVLINKS_SCENE', 
+// Step 1: Show current navLinks + action buttons
+async (ctx) => {
+    const navLinks = yamlAdmin_1.yamlAdmin.getNavLinks();
+    let msg = '🔗 *Top Navigation Links*\n\n';
+    if (navLinks.length === 0) {
+        msg += '_No nav links configured yet._\n';
+    }
+    else {
+        navLinks.forEach((n, i) => msg += `${i + 1}. ${n.title} → \`${n.path}\`\n`);
+    }
+    await ctx.reply(msg, {
+        parse_mode: 'Markdown',
+        ...telegraf_1.Markup.inlineKeyboard([
+            [telegraf_1.Markup.button.callback('➕ Add NavLink', 'nl_add'), telegraf_1.Markup.button.callback('🗑️ Delete NavLink', 'nl_delete')],
+            [telegraf_1.Markup.button.callback('❌ Cancel', 'nl_cancel')]
+        ])
+    });
+    return ctx.wizard.next();
+}, 
+// Step 2: Route by action choice
+async (ctx) => {
+    if (!ctx.callbackQuery)
+        return;
+    const action = ctx.callbackQuery.data;
+    await ctx.answerCbQuery();
+    if (action === 'nl_cancel') {
+        await (0, cleanup_1.cleanupBotMessages)(ctx);
+        await ctx.reply('Cancelled.');
+        return ctx.scene.leave();
+    }
+    if (action === 'nl_add') {
+        ctx.wizard.state.mode = 'add';
+        await ctx.reply('Send the TITLE for the new nav link (e.g. Grafana):');
+        return ctx.wizard.next();
+    }
+    if (action === 'nl_delete') {
+        ctx.wizard.state.mode = 'delete';
+        const navLinks = yamlAdmin_1.yamlAdmin.getNavLinks();
+        if (navLinks.length === 0) {
+            await (0, cleanup_1.cleanupBotMessages)(ctx);
+            await ctx.reply('No nav links to delete.');
+            return ctx.scene.leave();
+        }
+        const buttons = navLinks.map((n, idx) => [telegraf_1.Markup.button.callback(`🗑️ ${n.title}`, `nldel_${idx}`)]);
+        buttons.push([telegraf_1.Markup.button.callback('❌ Cancel', 'nl_cancel')]);
+        await ctx.reply('Select a nav link to delete:', telegraf_1.Markup.inlineKeyboard(buttons));
+        return ctx.wizard.next();
+    }
+}, 
+// Step 3a (Add): collect title then URL
+async (ctx) => {
+    const { mode } = ctx.wizard.state;
+    // Delete path: handle button click
+    if (mode === 'delete' && ctx.callbackQuery) {
+        const data = ctx.callbackQuery.data;
+        await ctx.answerCbQuery();
+        if (data === 'nl_cancel') {
+            await (0, cleanup_1.cleanupBotMessages)(ctx);
+            await ctx.reply('Cancelled.');
+            return ctx.scene.leave();
+        }
+        if (data.startsWith('nldel_')) {
+            const idx = Number(data.replace('nldel_', ''));
+            const navLinks = yamlAdmin_1.yamlAdmin.getNavLinks();
+            const navLink = navLinks[idx];
+            if (!navLink) {
+                await (0, cleanup_1.cleanupBotMessages)(ctx);
+                await ctx.reply('❌ Nav link not found.');
+                return ctx.scene.leave();
+            }
+            const title = navLink.title;
+            const success = yamlAdmin_1.yamlAdmin.deleteNavLink(title);
+            await (0, cleanup_1.cleanupBotMessages)(ctx);
+            await ctx.reply(success
+                ? `✅ NavLink "${title}" deleted.`
+                : `❌ Failed to delete "${title}".`);
+            return ctx.scene.leave();
+        }
+        return;
+    }
+    // Add path: collect title
+    if (mode === 'add' && ctx.message && 'text' in ctx.message) {
+        const title = ctx.message.text.trim();
+        if (!title) {
+            await ctx.reply('Title cannot be empty. Send the TITLE:');
+            return;
+        }
+        ctx.wizard.state.navLinkTitle = title;
+        await ctx.reply('Send the URL (e.g. http://192.168.1.26:3001):');
+        return ctx.wizard.next();
+    }
+}, 
+// Step 3b (Add): collect URL and save
+async (ctx) => {
+    if (!ctx.message || !('text' in ctx.message)) {
+        await ctx.reply('Please send a valid URL.');
+        return;
+    }
+    const url = ctx.message.text.trim();
+    if (!isValidUrl(url)) {
+        await ctx.reply('That does not look like a valid URL. Please try again:');
+        return;
+    }
+    const navLink = {
+        title: ctx.wizard.state.navLinkTitle,
+        path: url,
+        target: 'newtab'
+    };
+    const success = yamlAdmin_1.yamlAdmin.addNavLink(navLink);
+    await (0, cleanup_1.cleanupBotMessages)(ctx);
+    await ctx.reply(success
+        ? `✅ NavLink "${navLink.title}" added.`
+        : `❌ Failed to add NavLink — a link with that title may already exist.`);
+    return ctx.scene.leave();
+});
+exports.manageSubItemsScene = new telegraf_1.Scenes.WizardScene('MANAGE_SUBITEMS_SCENE', 
+// Step 1: Select an item from all sections
+async (ctx) => {
+    const sections = yamlAdmin_1.yamlAdmin.getSections();
+    const buttons = [];
+    sections.forEach((s) => {
+        s.items?.forEach((i) => {
+            if (i.id) {
+                buttons.push([telegraf_1.Markup.button.callback(`${i.title} (${s.name})`, `subi_${i.id}`)]);
+            }
+        });
+    });
+    if (!buttons.length) {
+        await (0, cleanup_1.cleanupBotMessages)(ctx);
+        await ctx.reply('No items found.');
+        return ctx.scene.leave();
+    }
+    await ctx.reply('Select an item to manage sub-links for:', telegraf_1.Markup.inlineKeyboard(buttons));
+    return ctx.wizard.next();
+}, 
+// Step 2: Show current subItems + action buttons
+async (ctx) => {
+    if (!ctx.callbackQuery?.data?.startsWith('subi_'))
+        return;
+    const itemId = ctx.callbackQuery.data.replace('subi_', '');
+    await ctx.answerCbQuery();
+    const result = yamlAdmin_1.yamlAdmin.getItemById(itemId);
+    if (!result) {
+        await (0, cleanup_1.cleanupBotMessages)(ctx);
+        await ctx.reply('❌ Item not found.');
+        return ctx.scene.leave();
+    }
+    ctx.wizard.state.itemId = itemId;
+    ctx.wizard.state.itemTitle = result.item.title;
+    const subItems = result.item.subItems || [];
+    let msg = `🔗 *Sub-links for "${result.item.title}"*\n\n`;
+    if (subItems.length === 0) {
+        msg += '_No sub-links yet._';
+        if (result.item.url) {
+            msg += `\n\n📌 Current URL: \`${result.item.url}\`\n_(Adding the first sub-link will auto-convert this into an "Open" sub-link)_`;
+        }
+    }
+    else {
+        subItems.forEach((s, i) => msg += `${i + 1}. ${s.title} → \`${s.url}\`\n`);
+    }
+    await ctx.reply(msg, {
+        parse_mode: 'Markdown',
+        ...telegraf_1.Markup.inlineKeyboard([
+            [telegraf_1.Markup.button.callback('➕ Add Sub-Link', 'sl_add'), telegraf_1.Markup.button.callback('🗑️ Remove Sub-Link', 'sl_delete')],
+            [telegraf_1.Markup.button.callback('❌ Cancel', 'sl_cancel')]
+        ])
+    });
+    return ctx.wizard.next();
+}, 
+// Step 3: Route by action choice
+async (ctx) => {
+    if (!ctx.callbackQuery)
+        return;
+    const action = ctx.callbackQuery.data;
+    await ctx.answerCbQuery();
+    if (action === 'sl_cancel') {
+        await (0, cleanup_1.cleanupBotMessages)(ctx);
+        await ctx.reply('Cancelled.');
+        return ctx.scene.leave();
+    }
+    if (action === 'sl_add') {
+        ctx.wizard.state.mode = 'add';
+        await ctx.reply('Send the TITLE for the new sub-link (e.g. Local):');
+        return ctx.wizard.next();
+    }
+    if (action === 'sl_delete') {
+        ctx.wizard.state.mode = 'delete';
+        const subItems = yamlAdmin_1.yamlAdmin.getSubItems(ctx.wizard.state.itemId);
+        if (subItems.length === 0) {
+            await (0, cleanup_1.cleanupBotMessages)(ctx);
+            await ctx.reply('No sub-links to remove.');
+            return ctx.scene.leave();
+        }
+        const buttons = subItems.map((s, i) => [telegraf_1.Markup.button.callback(`🗑️ ${s.title}`, `sldel_${i}`)]);
+        buttons.push([telegraf_1.Markup.button.callback('❌ Cancel', 'sl_cancel')]);
+        await ctx.reply('Select a sub-link to remove:', telegraf_1.Markup.inlineKeyboard(buttons));
+        return ctx.wizard.next();
+    }
+}, 
+// Step 4a (Add): collect title then URL
+async (ctx) => {
+    const { mode, itemId, itemTitle } = ctx.wizard.state;
+    // Delete path: handle button click
+    if (mode === 'delete' && ctx.callbackQuery) {
+        const data = ctx.callbackQuery.data;
+        await ctx.answerCbQuery();
+        if (data === 'sl_cancel') {
+            await (0, cleanup_1.cleanupBotMessages)(ctx);
+            await ctx.reply('Cancelled.');
+            return ctx.scene.leave();
+        }
+        if (data.startsWith('sldel_')) {
+            const idx = Number(data.replace('sldel_', ''));
+            const subItems = yamlAdmin_1.yamlAdmin.getSubItems(itemId);
+            const subItem = subItems[idx];
+            if (!subItem) {
+                await (0, cleanup_1.cleanupBotMessages)(ctx);
+                await ctx.reply('❌ Sub-link not found.');
+                return ctx.scene.leave();
+            }
+            const subTitle = subItem.title;
+            const success = yamlAdmin_1.yamlAdmin.deleteSubItem(itemId, subTitle);
+            await (0, cleanup_1.cleanupBotMessages)(ctx);
+            await ctx.reply(success
+                ? `✅ Sub-link "${subTitle}" removed from "${itemTitle}".`
+                : `❌ Failed to remove "${subTitle}".`);
+            return ctx.scene.leave();
+        }
+        return;
+    }
+    // Add path: collect title
+    if (mode === 'add' && ctx.message && 'text' in ctx.message) {
+        const title = ctx.message.text.trim();
+        if (!title) {
+            await ctx.reply('Title cannot be empty. Send the TITLE:');
+            return;
+        }
+        ctx.wizard.state.subItemTitle = title;
+        await ctx.reply('Send the URL for this sub-link:');
+        return ctx.wizard.next();
+    }
+}, 
+// Step 4b (Add): collect URL and save
+async (ctx) => {
+    if (!ctx.message || !('text' in ctx.message)) {
+        await ctx.reply('Please send a valid URL.');
+        return;
+    }
+    const url = ctx.message.text.trim();
+    if (!isValidUrl(url)) {
+        await ctx.reply('That does not look like a valid URL. Please try again:');
+        return;
+    }
+    const { itemId, itemTitle, subItemTitle } = ctx.wizard.state;
+    const success = yamlAdmin_1.yamlAdmin.addSubItem(itemId, { title: subItemTitle, url });
+    await (0, cleanup_1.cleanupBotMessages)(ctx);
+    await ctx.reply(success
+        ? `✅ Sub-link "${subItemTitle}" added to "${itemTitle}".`
+        : `❌ Failed to add sub-link — a sub-link with that title may already exist.`);
+    return ctx.scene.leave();
+});
+exports.stage = new telegraf_1.Scenes.Stage([exports.addItemScene, exports.addSectionScene, exports.editItemScene, exports.manageSectionScene, exports.moveItemScene, exports.manageNavLinksScene, exports.manageSubItemsScene]);
 // codded by https://github.com/dominatos

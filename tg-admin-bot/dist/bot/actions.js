@@ -26,6 +26,14 @@ const registerActions = (bot) => {
         await ctx.answerCbQuery();
         await ctx.scene.enter('MOVE_ITEM_SCENE');
     });
+    bot.action('action_manage_navlinks', async (ctx) => {
+        await ctx.answerCbQuery();
+        await ctx.scene.enter('MANAGE_NAVLINKS_SCENE');
+    });
+    bot.action('action_manage_sublinks', async (ctx) => {
+        await ctx.answerCbQuery();
+        await ctx.scene.enter('MANAGE_SUBITEMS_SCENE');
+    });
     bot.action('action_delete_item', async (ctx) => {
         await ctx.answerCbQuery();
         const sections = yamlAdmin_1.yamlAdmin.getSections();

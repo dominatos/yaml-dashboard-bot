@@ -22,6 +22,8 @@ export const registerCommands = (bot: Telegraf<any>) => {
       '/edit - Edit an item\n' +
       '/add_section - Create a new section\n' +
       '/manage_sections - Rename, Move items, or Delete Sections\n' +
+      '/navlinks - Manage top-level navigation links\n' +
+      '/sublinks - Manage sub-links within an item\n' +
       '/cancel - Cancel any current operation'
     );
   });
@@ -76,6 +78,14 @@ export const registerCommands = (bot: Telegraf<any>) => {
 
   bot.command('manage_sections', (ctx) => {
     ctx.scene.enter('MANAGE_SECTION_SCENE');
+  });
+
+  bot.command('navlinks', (ctx) => {
+    ctx.scene.enter('MANAGE_NAVLINKS_SCENE');
+  });
+
+  bot.command('sublinks', (ctx) => {
+    ctx.scene.enter('MANAGE_SUBITEMS_SCENE');
   });
 
   bot.command('delete', async (ctx) => {

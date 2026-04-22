@@ -12,6 +12,12 @@ export interface DashySubItem {
   target?: string;
 }
 
+export interface DashyNavLink {
+  title: string;
+  path: string;
+  target?: string;
+}
+
 export interface DashyItem {
   id?: string;
   title: string;
@@ -232,6 +238,117 @@ export class YamlAdmin {
     config.sections = config.sections.filter(s => s.name !== name);
 
     if (config.sections.length === initialLength) return false;
+    return this.writeConfig(config);
+  }
+
+  // ----------------------------------------------------------------
+  // NavLink methods
+  // ----------------------------------------------------------------
+
+  public getNavLinks(): DashyNavLink[] {
+    const config = this.readConfig();
+    if (!config) return [];
+    return (config.pageInfo?.navLinks as DashyNavLink[]) || [];
+  }
+
+  public addNavLink(navLink: DashyNavLink): boolean {
+    const config = this.readConfig();
+    if (!config) return false;
+    if (!config.pageInfo) config.pageInfo = {};
+    if (!Array.isArray(config.pageInfo.navLinks)) config.pageInfo.navLinks = [];
+
+    // Prevent duplicates by title
+    const exists = (config.pageInfo.navLinks as DashyNavLink[]).some(
+      (n) => n.title === navLink.title
+    );
+    if (exists) return false;
+
+    (config.pageInfo.navLinks as DashyNavLink[]).push(navLink);
+    return this.writeConfig(config);
+  }
+
+  public deleteNavLink(title: string): boolean {
+    const config = this.readConfig();
+    if (!config || !config.pageInfo?.navLinks) return false;
+
+    const initial = (config.pageInfo.navLinks as DashyNavLink[]).length;
+    config.pageInfo.navLinks = (config.pageInfo.navLinks as DashyNavLink[]).filter(
+      (n) => n.title !== title
+    );
+
+    if ((config.pageInfo.navLinks as DashyNavLink[]).length === initial) return false;
+    return this.writeConfig(config);
+  }
+
+  // ----------------------------------------------------------------
+  // SubItem methods
+  // ----------------------------------------------------------------
+
+  public getSubItems(itemId: string): DashySubItem[] {
+    const result = this.getItemById(itemId);
+    if (!result) return [];
+    return result.item.subItems || [];
+  }
+
+  /**
+   * Add a subItem to an item identified by itemId.
+   * Auto-convert: if the item has a `url` but no `subItems` yet,
+   * promote the existing url into a subItem titled "Open" first,
+   * so it is not silently lost from the PHP dashboard rendering.
+   */
+  public addSubItem(itemId: string, subItem: DashySubItem): boolean {
+    const config = this.readConfig();
+    if (!config || !config.sections) return false;
+
+    let targetItem: DashyItem | undefined;
+    for (const section of config.sections) {
+      if (section.items) {
+        targetItem = section.items.find((i) => i.id === itemId);
+        if (targetItem) break;
+      }
+    }
+    if (!targetItem) return false;
+
+    // Auto-convert: promote existing url into first subItem
+    if (!targetItem.subItems && targetItem.url) {
+      targetItem.subItems = [
+        { title: 'Open', url: targetItem.url }
+      ];
+    }
+
+    if (!targetItem.subItems) targetItem.subItems = [];
+
+    // Prevent duplicate sub-link titles
+    const exists = targetItem.subItems.some((s) => s.title === subItem.title);
+    if (exists) return false;
+
+    targetItem.subItems.push(subItem);
+    return this.writeConfig(config);
+  }
+
+  public deleteSubItem(itemId: string, subItemTitle: string): boolean {
+    const config = this.readConfig();
+    if (!config || !config.sections) return false;
+
+    let targetItem: DashyItem | undefined;
+    for (const section of config.sections) {
+      if (section.items) {
+        targetItem = section.items.find((i) => i.id === itemId);
+        if (targetItem) break;
+      }
+    }
+    if (!targetItem || !targetItem.subItems) return false;
+
+    const initial = targetItem.subItems.length;
+    targetItem.subItems = targetItem.subItems.filter((s) => s.title !== subItemTitle);
+
+    if (targetItem.subItems.length === initial) return false;
+
+    // If all subItems removed, clean up the empty array
+    if (targetItem.subItems.length === 0) {
+      delete targetItem.subItems;
+    }
+
     return this.writeConfig(config);
   }
 

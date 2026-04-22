@@ -193,6 +193,108 @@ class YamlAdmin {
             return false;
         return this.writeConfig(config);
     }
+    // ----------------------------------------------------------------
+    // NavLink methods
+    // ----------------------------------------------------------------
+    getNavLinks() {
+        const config = this.readConfig();
+        if (!config)
+            return [];
+        return config.pageInfo?.navLinks || [];
+    }
+    addNavLink(navLink) {
+        const config = this.readConfig();
+        if (!config)
+            return false;
+        if (!config.pageInfo)
+            config.pageInfo = {};
+        if (!Array.isArray(config.pageInfo.navLinks))
+            config.pageInfo.navLinks = [];
+        // Prevent duplicates by title
+        const exists = config.pageInfo.navLinks.some((n) => n.title === navLink.title);
+        if (exists)
+            return false;
+        config.pageInfo.navLinks.push(navLink);
+        return this.writeConfig(config);
+    }
+    deleteNavLink(title) {
+        const config = this.readConfig();
+        if (!config || !config.pageInfo?.navLinks)
+            return false;
+        const initial = config.pageInfo.navLinks.length;
+        config.pageInfo.navLinks = config.pageInfo.navLinks.filter((n) => n.title !== title);
+        if (config.pageInfo.navLinks.length === initial)
+            return false;
+        return this.writeConfig(config);
+    }
+    // ----------------------------------------------------------------
+    // SubItem methods
+    // ----------------------------------------------------------------
+    getSubItems(itemId) {
+        const result = this.getItemById(itemId);
+        if (!result)
+            return [];
+        return result.item.subItems || [];
+    }
+    /**
+     * Add a subItem to an item identified by itemId.
+     * Auto-convert: if the item has a `url` but no `subItems` yet,
+     * promote the existing url into a subItem titled "Open" first,
+     * so it is not silently lost from the PHP dashboard rendering.
+     */
+    addSubItem(itemId, subItem) {
+        const config = this.readConfig();
+        if (!config || !config.sections)
+            return false;
+        let targetItem;
+        for (const section of config.sections) {
+            if (section.items) {
+                targetItem = section.items.find((i) => i.id === itemId);
+                if (targetItem)
+                    break;
+            }
+        }
+        if (!targetItem)
+            return false;
+        // Auto-convert: promote existing url into first subItem
+        if (!targetItem.subItems && targetItem.url) {
+            targetItem.subItems = [
+                { title: 'Open', url: targetItem.url }
+            ];
+        }
+        if (!targetItem.subItems)
+            targetItem.subItems = [];
+        // Prevent duplicate sub-link titles
+        const exists = targetItem.subItems.some((s) => s.title === subItem.title);
+        if (exists)
+            return false;
+        targetItem.subItems.push(subItem);
+        return this.writeConfig(config);
+    }
+    deleteSubItem(itemId, subItemTitle) {
+        const config = this.readConfig();
+        if (!config || !config.sections)
+            return false;
+        let targetItem;
+        for (const section of config.sections) {
+            if (section.items) {
+                targetItem = section.items.find((i) => i.id === itemId);
+                if (targetItem)
+                    break;
+            }
+        }
+        if (!targetItem || !targetItem.subItems)
+            return false;
+        const initial = targetItem.subItems.length;
+        targetItem.subItems = targetItem.subItems.filter((s) => s.title !== subItemTitle);
+        if (targetItem.subItems.length === initial)
+            return false;
+        // If all subItems removed, clean up the empty array
+        if (targetItem.subItems.length === 0) {
+            delete targetItem.subItems;
+        }
+        return this.writeConfig(config);
+    }
     moveItems(itemTitles, fromSectionName, toSectionName) {
         const config = this.readConfig();
         if (!config || !config.sections)

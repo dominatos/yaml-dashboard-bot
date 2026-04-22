@@ -1,6 +1,6 @@
 {
   "name": "tg-admin-bot",
-  "version": "0.0.10",
+  "version": "0.2.0",
   "description": "Telegram Admin Bot for Dashy-style Dashboard",
   "main": "dist/index.js",
   "scripts": {
@@ -17,10 +17,10 @@
     "zod": "^3.23.8"
   },
   "devDependencies": {
-    "@jest/globals": "^30.3.0",
+    "@jest/globals": "^30.2.0",
     "@types/jest": "^30.0.0",
     "@types/node": "^20.12.12",
-    "jest": "^30.3.0",
+    "jest": "^30.2.0",
     "ts-jest": "^29.4.9",
     "ts-node": "^10.9.2",
     "typescript": "^5.4.5"
