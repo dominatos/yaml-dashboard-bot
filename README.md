@@ -1,5 +1,5 @@
 # Telegram Dashy Admin Bot 🤖
-![Version](https://img.shields.io/badge/version-0.2.1-blue)
+![Version](https://img.shields.io/badge/version-0.2.3-blue)
 
 A lightweight, secure, and fully Dockerized Telegram bot, powered by the [Telegraf](https://telegraf.js.org/) framework, designed to manage your self-hosted Dashy-style dashboard configuration (`conf.yml`). 
 

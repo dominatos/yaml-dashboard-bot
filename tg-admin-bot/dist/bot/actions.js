@@ -5,7 +5,16 @@ const telegraf_1 = require("telegraf");
 const yamlAdmin_1 = require("../service/yamlAdmin");
 const logger_1 = require("../utils/logger");
 const cleanup_1 = require("../utils/cleanup");
+const commands_1 = require("./commands");
 const registerActions = (bot) => {
+    bot.action('action_list_sections', async (ctx) => {
+        await ctx.answerCbQuery();
+        await (0, commands_1.sendSectionsList)(ctx);
+    });
+    bot.action('action_list_items', async (ctx) => {
+        await ctx.answerCbQuery();
+        await (0, commands_1.sendItemsList)(ctx);
+    });
     bot.action('action_add_section', async (ctx) => {
         await ctx.answerCbQuery();
         await ctx.scene.enter('ADD_SECTION_SCENE');

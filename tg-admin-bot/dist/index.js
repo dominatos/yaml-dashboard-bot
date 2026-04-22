@@ -50,6 +50,8 @@ const SCENE_ENTRY_ACTIONS = [
     'action_add_item',
     'action_edit_item',
     'action_move_item',
+    'action_manage_navlinks',
+    'action_manage_sublinks',
     'action_delete_item',
 ];
 // Slash commands that enter a scene
@@ -58,10 +60,12 @@ const SCENE_ENTRY_COMMANDS = {
     '/edit': 'action_edit_item',
     '/add_section': 'action_add_section',
     '/manage_sections': 'action_manage_sections',
+    '/navlinks': 'action_manage_navlinks',
+    '/sublinks': 'action_manage_sublinks',
     '/delete': 'action_delete_item',
 };
 // Commands handled by active wizard steps and should not trigger cancel flow
-const SCENE_INTERNAL_COMMANDS = new Set(['/skip']);
+const SCENE_INTERNAL_COMMANDS = new Set(['/skip', '/back']);
 // Apply middlewares
 bot.use((0, telegraf_1.session)());
 bot.use(middleware_1.authMiddleware);
@@ -141,6 +145,7 @@ bot.use(async (ctx, next) => {
                 await ctx.deleteMessage();
             }
             catch (_) { }
+            await ctx.reply('🔄 Resumed previous operation. Please provide your input:');
             return;
         }
     }
@@ -162,15 +167,16 @@ bot.use(async (ctx, next) => {
     }
     // --- Intercept ANY slash command while in a scene ---
     if (ctx.message && 'text' in ctx.message) {
-        const text = ctx.message.text.trim();
-        if (text.startsWith('/') && text !== '/cancel' && !SCENE_INTERNAL_COMMANDS.has(text)) {
+        const rawText = ctx.message.text.trim();
+        const command = rawText.split('@')[0].toLowerCase();
+        if (command.startsWith('/') && command !== '/cancel' && !SCENE_INTERNAL_COMMANDS.has(command)) {
             // For scene-entry commands, store the action so we auto-enter after cancel
-            if (SCENE_ENTRY_COMMANDS[text]) {
-                session.__pendingAction = SCENE_ENTRY_COMMANDS[text];
+            if (SCENE_ENTRY_COMMANDS[command]) {
+                session.__pendingAction = SCENE_ENTRY_COMMANDS[command];
             }
             else {
                 // For non-scene commands (/items, /sections, /help, etc.), store the raw command
-                session.__pendingCommand = text;
+                session.__pendingCommand = rawText;
             }
             await ctx.reply('⚠️ You have an active operation in progress. Cancel it and start a new one?', telegraf_1.Markup.inlineKeyboard([
                 [telegraf_1.Markup.button.callback('Yes, cancel', 'confirm_cancel_scene')],
@@ -199,6 +205,8 @@ bot.use(async (ctx, next) => {
             'action_add_item': 'ADD_ITEM_SCENE',
             'action_edit_item': 'EDIT_ITEM_SCENE',
             'action_move_item': 'MOVE_ITEM_SCENE',
+            'action_manage_navlinks': 'MANAGE_NAVLINKS_SCENE',
+            'action_manage_sublinks': 'MANAGE_SUBITEMS_SCENE',
         };
         const sceneName = ACTION_TO_SCENE[pendingAction];
         if (sceneName) {
@@ -257,6 +265,8 @@ const stopProcess = (signal) => {
             { command: 'edit', description: 'Edit an item' },
             { command: 'add_section', description: 'Create a new section' },
             { command: 'manage_sections', description: 'Rename, Move items, or Delete Sections' },
+            { command: 'navlinks', description: 'Manage top-level navigation links' },
+            { command: 'sublinks', description: 'Manage sub-links within an item' },
             { command: 'cancel', description: 'Cancel any current operation' }
         ]);
     }

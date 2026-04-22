@@ -2,8 +2,19 @@ import { Telegraf, Markup } from 'telegraf';
 import { yamlAdmin } from '../service/yamlAdmin';
 import { logger } from '../utils/logger';
 import { cleanupBotMessages } from '../utils/cleanup';
+import { sendItemsList, sendSectionsList } from './commands';
 
 export const registerActions = (bot: Telegraf<any>) => {
+  bot.action('action_list_sections', async (ctx) => {
+    await ctx.answerCbQuery();
+    await sendSectionsList(ctx);
+  });
+
+  bot.action('action_list_items', async (ctx) => {
+    await ctx.answerCbQuery();
+    await sendItemsList(ctx);
+  });
+
   bot.action('action_add_section', async (ctx) => {
     await ctx.answerCbQuery();
     await (ctx as any).scene.enter('ADD_SECTION_SCENE');

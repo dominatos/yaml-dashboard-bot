@@ -3,12 +3,57 @@ import { yamlAdmin } from '../service/yamlAdmin';
 import { cleanupBotMessages } from '../utils/cleanup';
 
 const escapeMd = (text: string) => text.replace(/[_*\[\]`]/g, '\\$&');
+const mainMenuKeyboard = Markup.inlineKeyboard([
+  [Markup.button.callback('📂 Sections', 'action_list_sections'), Markup.button.callback('📦 Items', 'action_list_items')],
+  [Markup.button.callback('➕ Add Item', 'action_add_item'), Markup.button.callback('➕ Add Section', 'action_add_section')],
+  [Markup.button.callback('🔗 NavLinks', 'action_manage_navlinks'), Markup.button.callback('🧩 Sub-Links', 'action_manage_sublinks')],
+  [Markup.button.callback('🔧 Manage Sections', 'action_manage_sections')]
+]);
+
+export const sendSectionsList = async (ctx: any) => {
+  const sections = yamlAdmin.getSections();
+  if (!sections.length) return ctx.reply('No sections found.');
+
+  let msg = '📂 *Sections*\n\n';
+  sections.forEach((s: any) => {
+    msg += `- ${escapeMd(s.name)} (${s.items?.length || 0} items)\n`;
+  });
+
+  const keyboard = Markup.inlineKeyboard([
+    [Markup.button.callback('➕ Add Section', 'action_add_section'), Markup.button.callback('🔧 Manage', 'action_manage_sections')]
+  ]);
+
+  await cleanupBotMessages(ctx);
+  return ctx.reply(msg, { parse_mode: 'Markdown', ...keyboard });
+};
+
+export const sendItemsList = async (ctx: any) => {
+  const sections = yamlAdmin.getSections();
+  if (!sections.length) return ctx.reply('No items found.');
+
+  let msg = '📦 *Items*\n\n';
+  sections.forEach((s: any) => {
+    msg += `*${escapeMd(s.name)}*\n`;
+    s.items?.forEach((i: any) => {
+      msg += ` - ${escapeMd(i.title)}\n`;
+    });
+    msg += '\n';
+  });
+
+  const keyboard = Markup.inlineKeyboard([
+    [Markup.button.callback('➕ Add Item', 'action_add_item'), Markup.button.callback('✏️ Edit Item', 'action_edit_item')],
+    [Markup.button.callback('➡️ Move Item', 'action_move_item'), Markup.button.callback('🗑️ Delete Item', 'action_delete_item')]
+  ]);
+
+  await cleanupBotMessages(ctx);
+  return ctx.reply(msg, { parse_mode: 'Markdown', ...keyboard });
+};
 
 export const registerCommands = (bot: Telegraf<any>) => {
   bot.command('start', (ctx) => {
     ctx.reply(
-      '👋 Welcome to the Dashy Admin Bot!\n\nUse /help to see all available commands.',
-      Markup.removeKeyboard()
+      '👋 Welcome to the Dashy Admin Bot!\n\nUse the buttons below or /help to see all available commands.',
+      mainMenuKeyboard
     );
   });
 
@@ -24,37 +69,17 @@ export const registerCommands = (bot: Telegraf<any>) => {
       '/manage_sections - Rename, Move items, or Delete Sections\n' +
       '/navlinks - Manage top-level navigation links\n' +
       '/sublinks - Manage sub-links within an item\n' +
-      '/cancel - Cancel any current operation'
+      '/cancel - Cancel any current operation',
+      mainMenuKeyboard
     );
   });
 
   bot.command('sections', async (ctx) => {
-    const sections = yamlAdmin.getSections();
-    if (!sections.length) return ctx.reply('No sections found.');
-    let msg = '📂 *Sections*\n\n';
-    sections.forEach(s => msg += `- ${escapeMd(s.name)} (${s.items?.length || 0} items)\n`);
-    const keyboard = Markup.inlineKeyboard([
-      [Markup.button.callback('➕ Add Section', 'action_add_section'), Markup.button.callback('🔧 Manage', 'action_manage_sections')]
-    ]);
-    await cleanupBotMessages(ctx);
-    ctx.reply(msg, { parse_mode: 'Markdown', ...keyboard });
+    await sendSectionsList(ctx);
   });
 
   bot.command('items', async (ctx) => {
-    const sections = yamlAdmin.getSections();
-    if (!sections.length) return ctx.reply('No items found.');
-    let msg = '📦 *Items*\n\n';
-    sections.forEach(s => {
-      msg += `*${escapeMd(s.name)}*\n`;
-      s.items?.forEach(i => msg += ` - ${escapeMd(i.title)}\n`);
-      msg += '\n';
-    });
-    const keyboard = Markup.inlineKeyboard([
-      [Markup.button.callback('➕ Add Item', 'action_add_item'), Markup.button.callback('✏️ Edit Item', 'action_edit_item')],
-      [Markup.button.callback('➡️ Move Item', 'action_move_item'), Markup.button.callback('🗑️ Delete Item', 'action_delete_item')]
-    ]);
-    await cleanupBotMessages(ctx);
-    ctx.reply(msg, { parse_mode: 'Markdown', ...keyboard });
+    await sendItemsList(ctx);
   });
 
   bot.command('cancel', async (ctx) => {
