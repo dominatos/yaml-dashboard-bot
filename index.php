@@ -1,5 +1,5 @@
 <?php
-define('APP_VERSION', '0.2.0');
+define('APP_VERSION', '0.2.1');
 // Function to safely parse YAML using Python (avoids dependency on php-yaml extension)
 function parse_yaml_file($file) {
     if (!file_exists($file)) return null;

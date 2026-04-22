@@ -1,6 +1,6 @@
 {
   "name": "tg-admin-bot",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Telegram Admin Bot for Dashy-style Dashboard",
   "main": "dist/index.js",
   "scripts": {

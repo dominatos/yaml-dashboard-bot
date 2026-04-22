@@ -60,6 +60,8 @@ const SCENE_ENTRY_COMMANDS = {
     '/manage_sections': 'action_manage_sections',
     '/delete': 'action_delete_item',
 };
+// Commands handled by active wizard steps and should not trigger cancel flow
+const SCENE_INTERNAL_COMMANDS = new Set(['/skip']);
 // Apply middlewares
 bot.use((0, telegraf_1.session)());
 bot.use(middleware_1.authMiddleware);
@@ -161,7 +163,7 @@ bot.use(async (ctx, next) => {
     // --- Intercept ANY slash command while in a scene ---
     if (ctx.message && 'text' in ctx.message) {
         const text = ctx.message.text.trim();
-        if (text.startsWith('/') && text !== '/cancel') {
+        if (text.startsWith('/') && text !== '/cancel' && !SCENE_INTERNAL_COMMANDS.has(text)) {
             // For scene-entry commands, store the action so we auto-enter after cancel
             if (SCENE_ENTRY_COMMANDS[text]) {
                 session.__pendingAction = SCENE_ENTRY_COMMANDS[text];
