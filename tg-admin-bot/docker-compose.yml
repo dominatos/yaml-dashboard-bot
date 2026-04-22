@@ -1,0 +1,16 @@
+
+services:
+  tg-admin-bot:
+    build: .
+    container_name: tg-admin-bot
+    restart: unless-stopped
+    env_file:
+      - .env
+    volumes:
+      # Mount the actual conf.yml file from the path specified in .env, defaulting to parent directory
+      # Important: this maps directly to /app/conf.yml inside the container
+      - ${CONF_PATH:-../conf.yml}:/app/conf.yml
+    environment:
+      - CONF_PATH=/app/conf.yml
+
+# codded by https://github.com/dominatos
