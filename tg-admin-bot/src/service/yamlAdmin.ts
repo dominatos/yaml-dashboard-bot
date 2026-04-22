@@ -326,6 +326,62 @@ export class YamlAdmin {
     return this.writeConfig(config);
   }
 
+  public editSubItem(itemId: string, oldSubItemTitle: string, updatedSubItem: Partial<DashySubItem>): boolean {
+    const config = this.readConfig();
+    if (!config || !config.sections) return false;
+
+    let targetItem: DashyItem | undefined;
+    for (const section of config.sections) {
+      if (section.items) {
+        targetItem = section.items.find((i) => i.id === itemId);
+        if (targetItem) break;
+      }
+    }
+    if (!targetItem || !targetItem.subItems) return false;
+
+    const subItemIndex = targetItem.subItems.findIndex((s) => s.title === oldSubItemTitle);
+    if (subItemIndex === -1) return false;
+
+    const nextTitle = updatedSubItem.title?.trim();
+    if (
+      nextTitle &&
+      nextTitle !== oldSubItemTitle &&
+      targetItem.subItems.some((s, idx) => idx !== subItemIndex && s.title === nextTitle)
+    ) {
+      return false;
+    }
+
+    const currentSubItem = targetItem.subItems[subItemIndex];
+    const mergedSubItem: DashySubItem = { ...currentSubItem };
+
+    if (Object.prototype.hasOwnProperty.call(updatedSubItem, 'title') && nextTitle) {
+      mergedSubItem.title = nextTitle;
+    }
+
+    if (Object.prototype.hasOwnProperty.call(updatedSubItem, 'url') && updatedSubItem.url?.trim()) {
+      mergedSubItem.url = updatedSubItem.url.trim();
+    }
+
+    if (Object.prototype.hasOwnProperty.call(updatedSubItem, 'icon')) {
+      if (updatedSubItem.icon?.trim()) {
+        mergedSubItem.icon = updatedSubItem.icon.trim();
+      } else {
+        delete mergedSubItem.icon;
+      }
+    }
+
+    if (Object.prototype.hasOwnProperty.call(updatedSubItem, 'target')) {
+      if (updatedSubItem.target?.trim()) {
+        mergedSubItem.target = updatedSubItem.target.trim();
+      } else {
+        delete mergedSubItem.target;
+      }
+    }
+
+    targetItem.subItems[subItemIndex] = mergedSubItem;
+    return this.writeConfig(config);
+  }
+
   public deleteSubItem(itemId: string, subItemTitle: string): boolean {
     const config = this.readConfig();
     if (!config || !config.sections) return false;

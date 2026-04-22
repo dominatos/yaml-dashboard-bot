@@ -581,7 +581,8 @@ export const manageSubItemsScene = new Scenes.WizardScene(
     await ctx.reply(msg, {
       parse_mode: 'Markdown',
       ...Markup.inlineKeyboard([
-        [Markup.button.callback('➕ Add Sub-Link', 'sl_add'), Markup.button.callback('🗑️ Remove Sub-Link', 'sl_delete')],
+        [Markup.button.callback('➕ Add Sub-Link', 'sl_add'), Markup.button.callback('✏️ Edit Sub-Link', 'sl_edit')],
+        [Markup.button.callback('🗑️ Remove Sub-Link', 'sl_delete')],
         [Markup.button.callback('❌ Cancel', 'sl_cancel')]
       ])
     });
@@ -601,6 +602,19 @@ export const manageSubItemsScene = new Scenes.WizardScene(
       await ctx.reply('Send the TITLE for the new sub-link (e.g. Local):');
       return ctx.wizard.next();
     }
+    if (action === 'sl_edit') {
+      ctx.wizard.state.mode = 'edit_select';
+      const subItems = yamlAdmin.getSubItems(ctx.wizard.state.itemId);
+      if (subItems.length === 0) {
+        return finishScene(ctx, 'No sub-links to edit.');
+      }
+      const buttons = subItems.map((s, i) =>
+        [Markup.button.callback(`✏️ ${s.title}`, `sledit_${i}`)]
+      );
+      buttons.push([Markup.button.callback('❌ Cancel', 'sl_cancel')]);
+      await ctx.reply('Select a sub-link to edit:', Markup.inlineKeyboard(buttons));
+      return ctx.wizard.next();
+    }
     if (action === 'sl_delete') {
       ctx.wizard.state.mode = 'delete';
       const subItems = yamlAdmin.getSubItems(ctx.wizard.state.itemId);
@@ -618,6 +632,31 @@ export const manageSubItemsScene = new Scenes.WizardScene(
   // Step 4a (Add): collect title then URL
   async (ctx: any) => {
     const { mode, itemId, itemTitle } = ctx.wizard.state;
+
+    if (mode === 'edit_select' && ctx.callbackQuery) {
+      const data = ctx.callbackQuery.data;
+      await ctx.answerCbQuery();
+      if (data === 'sl_cancel') {
+        return finishScene(ctx, 'Cancelled.');
+      }
+      if (data.startsWith('sledit_')) {
+        const idx = Number(data.replace('sledit_', ''));
+        const subItems = yamlAdmin.getSubItems(itemId);
+        const subItem = subItems[idx];
+        if (!subItem) {
+          return finishScene(ctx, '❌ Sub-link not found.');
+        }
+        ctx.wizard.state.mode = 'edit_field';
+        ctx.wizard.state.oldSubItemTitle = subItem.title;
+        await ctx.reply('What do you want to edit?', Markup.inlineKeyboard([
+          [Markup.button.callback('Title', 'slprop_title'), Markup.button.callback('URL', 'slprop_url')],
+          [Markup.button.callback('Icon', 'slprop_icon'), Markup.button.callback('Target', 'slprop_target')],
+          [Markup.button.callback('Cancel', 'sl_cancel')]
+        ]));
+        return ctx.wizard.next();
+      }
+      return;
+    }
 
     // Delete path: handle button click
     if (mode === 'delete' && ctx.callbackQuery) {
@@ -657,8 +696,30 @@ export const manageSubItemsScene = new Scenes.WizardScene(
       return ctx.wizard.next();
     }
   },
-  // Step 4b (Add): collect URL and save
+  // Step 4b: add URL or choose editable sub-link field
   async (ctx: any) => {
+    if (ctx.wizard.state.mode === 'edit_field' && ctx.callbackQuery) {
+      const data = ctx.callbackQuery.data;
+      await ctx.answerCbQuery();
+      if (data === 'sl_cancel') {
+        return finishScene(ctx, 'Cancelled.');
+      }
+      if (data.startsWith('slprop_')) {
+        const field = data.replace('slprop_', '');
+        ctx.wizard.state.subItemField = field;
+
+        if (field === 'icon') {
+          await ctx.reply('Send the new ICON for this sub-link or /skip to clear it:');
+        } else if (field === 'target') {
+          await ctx.reply('Send the new TARGET (`newtab` or `sametab`) or /skip to clear it:');
+        } else {
+          await ctx.reply(`Send the new ${field.toUpperCase()} for this sub-link:`);
+        }
+        return ctx.wizard.next();
+      }
+      return;
+    }
+
     if (!ctx.message || !('text' in ctx.message)) {
       await ctx.reply('Please send a valid URL.');
       return;
@@ -675,6 +736,52 @@ export const manageSubItemsScene = new Scenes.WizardScene(
       success
         ? `✅ Sub-link "${subItemTitle}" added to "${itemTitle}".`
         : '❌ Failed to add sub-link — a sub-link with that title may already exist.'
+    );
+  },
+  // Step 5: apply sub-link edit
+  async (ctx: any) => {
+    if (!ctx.message || !('text' in ctx.message)) {
+      await ctx.reply('Please send valid text.');
+      return;
+    }
+
+    const { itemId, itemTitle, oldSubItemTitle, subItemField } = ctx.wizard.state;
+    const value = ctx.message.text.trim();
+    const updatedSubItem: any = {};
+
+    if (subItemField === 'title') {
+      if (!value || value === '/skip') {
+        await ctx.reply('Title cannot be empty. Send the new TITLE:');
+        return;
+      }
+      updatedSubItem.title = value;
+    } else if (subItemField === 'url') {
+      if (!isValidUrl(value)) {
+        await ctx.reply('That does not look like a valid URL. Please try again:');
+        return;
+      }
+      updatedSubItem.url = value;
+    } else if (subItemField === 'icon') {
+      updatedSubItem.icon = value === '/skip' ? undefined : value;
+    } else if (subItemField === 'target') {
+      if (value === '/skip') {
+        updatedSubItem.target = undefined;
+      } else if (value !== 'newtab' && value !== 'sametab') {
+        await ctx.reply('Target must be `newtab`, `sametab`, or /skip to clear it:');
+        return;
+      } else {
+        updatedSubItem.target = value;
+      }
+    } else {
+      return finishScene(ctx, '❌ Unsupported sub-link field.');
+    }
+
+    const success = yamlAdmin.editSubItem(itemId, oldSubItemTitle, updatedSubItem);
+    return finishScene(
+      ctx,
+      success
+        ? `✅ Sub-link updated successfully in "${itemTitle}".`
+        : '❌ Failed to update sub-link.'
     );
   }
 );

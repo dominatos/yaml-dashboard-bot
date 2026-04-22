@@ -1,5 +1,5 @@
 # Telegram Dashy Admin Bot 🤖
-![Version](https://img.shields.io/badge/version-0.2.4-blue)
+![Version](https://img.shields.io/badge/version-0.2.5-blue)
 
 A lightweight, secure, and fully Dockerized Telegram bot, powered by the [Telegraf](https://telegraf.js.org/) framework, designed to manage your self-hosted Dashy-style dashboard configuration (`conf.yml`). 
 
@@ -191,7 +191,7 @@ Interact with your active Telegram bot using these standard commands:
 * `/add_section` - Mounts the **Add Section Scene** to create a new section.
 * `/manage_sections` - Mounts the **Manage Section Scene** to rename, move items, or delete sections.
 * `/navlinks` - Mounts the **NavLinks Scene** to add or delete top-level navigation bar links (the pill buttons shown above the dashboard sections).
-* `/sublinks` - Mounts the **Sub-Links Scene** to add or remove individual links inside an item card. When adding the first sub-link to an item that already has a single URL, it auto-converts that URL into an "Open" sub-link so nothing is silently lost.
+* `/sublinks` - Mounts the **Sub-Links Scene** to add, edit, or remove individual links inside an item card. When adding the first sub-link to an item that already has a single URL, it auto-converts that URL into an "Open" sub-link so nothing is silently lost.
 * `[Raw HTTP/HTTPS Link]` - If you message the bot a standalone URL, it bypasses the wizard and automatically extracts the `<title>` element (or defaults to the URL path). It instantly injects the new link into a category titled **"Unsorted"**.
 * `/delete` - Queries all items, binding them to an inline callback-keyboard. Selecting an item instantly wipes it from the `conf.yml`.
 * `/cancel` - Kills your active wizard workflow securely (specifically required if you get trapped inside prompts and want to back out).

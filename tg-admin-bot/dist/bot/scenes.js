@@ -514,7 +514,8 @@ async (ctx) => {
     await ctx.reply(msg, {
         parse_mode: 'Markdown',
         ...telegraf_1.Markup.inlineKeyboard([
-            [telegraf_1.Markup.button.callback('➕ Add Sub-Link', 'sl_add'), telegraf_1.Markup.button.callback('🗑️ Remove Sub-Link', 'sl_delete')],
+            [telegraf_1.Markup.button.callback('➕ Add Sub-Link', 'sl_add'), telegraf_1.Markup.button.callback('✏️ Edit Sub-Link', 'sl_edit')],
+            [telegraf_1.Markup.button.callback('🗑️ Remove Sub-Link', 'sl_delete')],
             [telegraf_1.Markup.button.callback('❌ Cancel', 'sl_cancel')]
         ])
     });
@@ -534,6 +535,17 @@ async (ctx) => {
         await ctx.reply('Send the TITLE for the new sub-link (e.g. Local):');
         return ctx.wizard.next();
     }
+    if (action === 'sl_edit') {
+        ctx.wizard.state.mode = 'edit_select';
+        const subItems = yamlAdmin_1.yamlAdmin.getSubItems(ctx.wizard.state.itemId);
+        if (subItems.length === 0) {
+            return finishScene(ctx, 'No sub-links to edit.');
+        }
+        const buttons = subItems.map((s, i) => [telegraf_1.Markup.button.callback(`✏️ ${s.title}`, `sledit_${i}`)]);
+        buttons.push([telegraf_1.Markup.button.callback('❌ Cancel', 'sl_cancel')]);
+        await ctx.reply('Select a sub-link to edit:', telegraf_1.Markup.inlineKeyboard(buttons));
+        return ctx.wizard.next();
+    }
     if (action === 'sl_delete') {
         ctx.wizard.state.mode = 'delete';
         const subItems = yamlAdmin_1.yamlAdmin.getSubItems(ctx.wizard.state.itemId);
@@ -549,6 +561,30 @@ async (ctx) => {
 // Step 4a (Add): collect title then URL
 async (ctx) => {
     const { mode, itemId, itemTitle } = ctx.wizard.state;
+    if (mode === 'edit_select' && ctx.callbackQuery) {
+        const data = ctx.callbackQuery.data;
+        await ctx.answerCbQuery();
+        if (data === 'sl_cancel') {
+            return finishScene(ctx, 'Cancelled.');
+        }
+        if (data.startsWith('sledit_')) {
+            const idx = Number(data.replace('sledit_', ''));
+            const subItems = yamlAdmin_1.yamlAdmin.getSubItems(itemId);
+            const subItem = subItems[idx];
+            if (!subItem) {
+                return finishScene(ctx, '❌ Sub-link not found.');
+            }
+            ctx.wizard.state.mode = 'edit_field';
+            ctx.wizard.state.oldSubItemTitle = subItem.title;
+            await ctx.reply('What do you want to edit?', telegraf_1.Markup.inlineKeyboard([
+                [telegraf_1.Markup.button.callback('Title', 'slprop_title'), telegraf_1.Markup.button.callback('URL', 'slprop_url')],
+                [telegraf_1.Markup.button.callback('Icon', 'slprop_icon'), telegraf_1.Markup.button.callback('Target', 'slprop_target')],
+                [telegraf_1.Markup.button.callback('Cancel', 'sl_cancel')]
+            ]));
+            return ctx.wizard.next();
+        }
+        return;
+    }
     // Delete path: handle button click
     if (mode === 'delete' && ctx.callbackQuery) {
         const data = ctx.callbackQuery.data;
@@ -583,8 +619,30 @@ async (ctx) => {
         return ctx.wizard.next();
     }
 }, 
-// Step 4b (Add): collect URL and save
+// Step 4b: add URL or choose editable sub-link field
 async (ctx) => {
+    if (ctx.wizard.state.mode === 'edit_field' && ctx.callbackQuery) {
+        const data = ctx.callbackQuery.data;
+        await ctx.answerCbQuery();
+        if (data === 'sl_cancel') {
+            return finishScene(ctx, 'Cancelled.');
+        }
+        if (data.startsWith('slprop_')) {
+            const field = data.replace('slprop_', '');
+            ctx.wizard.state.subItemField = field;
+            if (field === 'icon') {
+                await ctx.reply('Send the new ICON for this sub-link or /skip to clear it:');
+            }
+            else if (field === 'target') {
+                await ctx.reply('Send the new TARGET (`newtab` or `sametab`) or /skip to clear it:');
+            }
+            else {
+                await ctx.reply(`Send the new ${field.toUpperCase()} for this sub-link:`);
+            }
+            return ctx.wizard.next();
+        }
+        return;
+    }
     if (!ctx.message || !('text' in ctx.message)) {
         await ctx.reply('Please send a valid URL.');
         return;
@@ -599,6 +657,52 @@ async (ctx) => {
     return finishScene(ctx, success
         ? `✅ Sub-link "${subItemTitle}" added to "${itemTitle}".`
         : '❌ Failed to add sub-link — a sub-link with that title may already exist.');
+}, 
+// Step 5: apply sub-link edit
+async (ctx) => {
+    if (!ctx.message || !('text' in ctx.message)) {
+        await ctx.reply('Please send valid text.');
+        return;
+    }
+    const { itemId, itemTitle, oldSubItemTitle, subItemField } = ctx.wizard.state;
+    const value = ctx.message.text.trim();
+    const updatedSubItem = {};
+    if (subItemField === 'title') {
+        if (!value || value === '/skip') {
+            await ctx.reply('Title cannot be empty. Send the new TITLE:');
+            return;
+        }
+        updatedSubItem.title = value;
+    }
+    else if (subItemField === 'url') {
+        if (!isValidUrl(value)) {
+            await ctx.reply('That does not look like a valid URL. Please try again:');
+            return;
+        }
+        updatedSubItem.url = value;
+    }
+    else if (subItemField === 'icon') {
+        updatedSubItem.icon = value === '/skip' ? undefined : value;
+    }
+    else if (subItemField === 'target') {
+        if (value === '/skip') {
+            updatedSubItem.target = undefined;
+        }
+        else if (value !== 'newtab' && value !== 'sametab') {
+            await ctx.reply('Target must be `newtab`, `sametab`, or /skip to clear it:');
+            return;
+        }
+        else {
+            updatedSubItem.target = value;
+        }
+    }
+    else {
+        return finishScene(ctx, '❌ Unsupported sub-link field.');
+    }
+    const success = yamlAdmin_1.yamlAdmin.editSubItem(itemId, oldSubItemTitle, updatedSubItem);
+    return finishScene(ctx, success
+        ? `✅ Sub-link updated successfully in "${itemTitle}".`
+        : '❌ Failed to update sub-link.');
 });
 exports.stage = new telegraf_1.Scenes.Stage([exports.addItemScene, exports.addSectionScene, exports.editItemScene, exports.manageSectionScene, exports.moveItemScene, exports.manageNavLinksScene, exports.manageSubItemsScene]);
 // codded by https://github.com/dominatos
