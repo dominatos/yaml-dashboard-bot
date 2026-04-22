@@ -146,20 +146,26 @@ sections:
         description: Internal notes and cheat sheets
         icon: fas fa-book
         url: https://docs.example.com
-        subItems:
-          - title: Runbooks
-            url: https://docs.example.com/runbooks
-          - title: Cheat Sheets
-            url: https://docs.example.com/cheats
-      - title: GitHub
+      - title: Runbooks
+        description: Operating notes and recovery guides
+        icon: fas fa-book-open
+        url: https://docs.example.com/runbooks
+      - title: Cheat Sheets
+        description: Handy commands and snippets
+        icon: fas fa-note-sticky
+        url: https://docs.example.com/cheats
+      - title: GitHub Profile
         description: Source code and automation
         icon: si-github
         url: https://github.com/example
-        subItems:
-          - title: Main Repo
-            url: https://github.com/example/home-lab
-          - title: Bot Repo
-            url: https://github.com/example/yaml-dashboard-bot
+      - title: Home Lab Repo
+        description: Infrastructure and dashboard config
+        icon: si-github
+        url: https://github.com/example/home-lab
+      - title: Bot Repo
+        description: Telegram admin bot source code
+        icon: si-github
+        url: https://github.com/example/yaml-dashboard-bot
 
   - name: Unsorted
     icon: fas fa-inbox
