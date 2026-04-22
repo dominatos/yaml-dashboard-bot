@@ -1,0 +1,176 @@
+pageInfo:
+  title: Example Home Lab
+  description: Self-hosted services, monitoring, media, and finance
+  navLinks:
+    - title: Media
+      path: https://watch.example.com
+      target: newtab
+    - title: Budget
+      path: https://ab.example.com/budget
+      target: newtab
+    - title: Grafana
+      path: http://192.168.X.X:3001
+      target: newtab
+    - title: Docs
+      path: https://docs.example.com
+      target: newtab
+  footerText: Example Home Lab
+
+appConfig:
+  # Keep one shared conf.yml for Dashy, the Telegram bot, and index.php.
+  # Dashy-specific visual tuning belongs here because index.php ignores appConfig.
+  theme: one-dark
+  layout: auto
+  iconSize: medium
+  colCount: 3
+  language: en
+  defaultOpeningMethod: newtab
+  statusCheck: true
+  statusCheckInterval: 60
+  faviconApi: local
+  defaultIcon: generative
+  routingMode: history
+  hideComponents:
+    hideFooter: false
+    hideSearch: false
+    hideSettings: true
+
+sections:
+  - name: Media
+    icon: fas fa-photo-video
+    displayData:
+      itemSize: medium
+      sectionLayout: grid
+      itemCountX: 3
+    items:
+      - title: Jellyfin
+        description: Watch movies and series
+        icon: si-jellyfin
+        url: https://watch.example.com
+        statusCheck: true
+        statusCheckUrl: http://192.168.X.X:8096
+        subItems:
+          - title: Public
+            url: https://watch.example.com
+            icon: si-jellyfin
+          - title: Local
+            url: http://192.168.X.X:8096
+            icon: si-jellyfin
+      - title: qBittorrent
+        description: Torrent downloads
+        icon: si-qbittorrent
+        url: http://192.168.X.X:8080
+        statusCheck: true
+        statusCheckUrl: http://192.168.X.X:8080
+      - title: Immich
+        description: Photo and backup gallery
+        icon: si-immich
+        url: https://photos.example.com
+        statusCheck: true
+        statusCheckUrl: https://photos.example.com
+
+  - name: Finance
+    icon: fas fa-chart-line
+    displayData:
+      itemSize: medium
+      sectionLayout: grid
+      itemCountX: 2
+    items:
+      - title: Actual Budget
+        description: Personal budgeting and planning
+        icon: si-actualbudget
+        url: https://ab.example.com/budget
+        statusCheck: true
+        statusCheckUrl: https://ab.example.com/
+        subItems:
+          - title: Main App
+            url: https://ab.example.com/budget
+            icon: si-actualbudget
+          - title: Docs
+            url: https://actualbudget.org/docs/
+            icon: fas fa-book
+      - title: Ghostfolio
+        description: Portfolio tracking
+        icon: si-ghostfolio
+        url: http://192.168.X.X:3333/en/home
+        statusCheck: true
+        statusCheckUrl: http://192.168.X.X:3333/
+
+  - name: Monitoring
+    icon: fas fa-heartbeat
+    displayData:
+      itemSize: medium
+      sectionLayout: grid
+      itemCountX: 3
+    items:
+      - title: Grafana
+        description: Dashboards and observability
+        icon: si-grafana
+        url: http://192.168.X.X:3001
+        statusCheck: true
+        statusCheckUrl: http://192.168.X.X:3001/api/health
+        subItems:
+          - title: Home
+            url: http://192.168.X.X:3001
+            icon: si-grafana
+          - title: Public Board
+            url: https://grafana.example.com/public-dashboards/example
+            icon: fas fa-chart-area
+      - title: Prometheus
+        description: Metrics collection
+        icon: si-prometheus
+        url: http://192.168.X.X:9090
+        statusCheck: true
+        statusCheckUrl: http://192.168.X.X:9090/-/healthy
+      - title: Uptime Kuma
+        description: Status pages and alerts
+        icon: si-uptimekuma
+        url: http://192.168.X.X:3002
+        statusCheck: true
+        statusCheckUrl: http://192.168.X.X:3002
+
+  - name: Tools
+    icon: fas fa-toolbox
+    displayData:
+      itemSize: medium
+      sectionLayout: grid
+      itemCountX: 3
+    items:
+      - title: Portainer
+        description: Docker management
+        icon: si-portainer
+        url: http://192.168.X.X:9000
+        statusCheck: true
+        statusCheckUrl: http://192.168.X.X:9000
+      - title: Docs
+        description: Internal notes and cheat sheets
+        icon: fas fa-book
+        url: https://docs.example.com
+        subItems:
+          - title: Runbooks
+            url: https://docs.example.com/runbooks
+          - title: Cheat Sheets
+            url: https://docs.example.com/cheats
+      - title: GitHub
+        description: Source code and automation
+        icon: si-github
+        url: https://github.com/example
+        subItems:
+          - title: Main Repo
+            url: https://github.com/example/home-lab
+          - title: Bot Repo
+            url: https://github.com/example/yaml-dashboard-bot
+
+  - name: Unsorted
+    icon: fas fa-inbox
+    displayData:
+      itemSize: small
+      sectionLayout: grid
+      itemCountX: 2
+    items:
+      - title: Temporary Link
+        description: Review and move into a proper section later
+        icon: fas fa-link
+        url: https://example.org
+
+# codded by https://github.com/dominatos

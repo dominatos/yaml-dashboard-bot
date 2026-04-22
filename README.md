@@ -6,6 +6,16 @@ A lightweight, secure, and fully Dockerized Telegram bot, powered by the [Telegr
 By bridging a Telegram chat interface directly to your YAML file, this bot acts as a specialized CRUD (Create, Read, Update, Delete) administrator. It utilizes interactive multi-step wizards for adding items and robust inline-keyboards for modifications, completely removing the hassle of SSH/terminal YAML editing.
 
 Also includes a standalone PHP dashboard to render your conf.yml without Dashy.
+
+## Shared Config Strategy
+
+This project is designed around a single shared `conf.yml`.
+
+- Dashy, the Telegram bot, and the standalone PHP dashboard all read the same file.
+- If you want to improve how Dashy looks without changing the PHP dashboard structure, prefer tuning `appConfig` fields such as `theme`, `layout`, `iconSize`, `colCount`, and `hideComponents`.
+- Treat `pageInfo`, `sections`, `items`, and `subItems` as shared content. Changing them will affect both Dashy and the PHP dashboard.
+- Use [conf.yaml.example](./conf.yaml.example) as the reference for a cleaner single-file layout with grouped sections and sub-links.
+
 ## Example Screenshots
 
 <img src="img/screenshot-php-dashboard.jpg" alt="PHP Dashboard">
@@ -97,6 +107,8 @@ sections:
 ```
 
 > **💡 Note:** This PHP dashboard reads the exact same `conf.yml` used by the Telegram bot. Any additions, edits, or reordering you perform via the Telegram bot will instantly be synced and reflected on your live dashboard!
+>
+> For Dashy-only visual improvements, keep using the same `conf.yml` and adjust `appConfig` instead of creating a second config file.
 
 ---
 ## 🚀 Setup & Installation
